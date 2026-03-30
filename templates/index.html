@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 水印清除工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f0f13;
+            --surface: #1a1a24;
+            --surface2: #23233a;
+            --border: #2d2d48;
+            --primary: #6c5ce7;
+            --primary-hover: #7f71ed;
+            --accent: #00cec9;
+            --text: #e8e8f0;
+            --text-dim: #8888a8;
+            --danger: #ff6b6b;
+            --success: #00b894;
+            --radius: 12px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 0;
+        }
+
+        .header-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; font-weight: 700;
+        }
+
+        .header-text h1 {
+            font-size: 20px; font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #ccc 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .header-text p { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        /* 步骤指示器 */
+        .steps {
+            display: flex; gap: 8px; margin-bottom: 32px;
+        }
+
+        .step {
+            flex: 1; padding: 14px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            display: flex; align-items: center; gap: 12px;
+            opacity: 0.45; transition: all 0.3s;
+        }
+
+        .step.active { opacity: 1; border-color: var(--primary); }
+        .step.done { opacity: 0.7; border-color: var(--success); }
+
+        .step-num {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--surface2);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 14px;
+        }
+
+        .step.active .step-num { background: var(--primary); }
+        .step.done .step-num { background: var(--success); }
+
+        .step-label { font-size: 14px; font-weight: 500; }
+
+        /* 上传区 */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 60px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: var(--surface);
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(108, 92, 231, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 56px; margin-bottom: 16px; opacity: 0.6;
+        }
+
+        .upload-zone h3 { font-size: 18px; margin-bottom: 8px; }
+        .upload-zone p { color: var(--text-dim); font-size: 14px; }
+
+        .upload-btn {
+            display: inline-block; margin-top: 20px;
+            padding: 10px 28px; background: var(--primary);
+            color: white; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .upload-btn:hover { background: var(--primary-hover); }
+
+        /* 文件信息 */
+        .file-info {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            align-items: center; gap: 16px;
+        }
+
+        .file-info.show { display: flex; }
+
+        .file-icon { font-size: 36px; }
+
+        .file-meta { flex: 1; }
+        .file-meta .name { font-weight: 600; font-size: 15px; }
+        .file-meta .size { color: var(--text-dim); font-size: 13px; margin-top: 2px; }
+
+        .file-remove {
+            background: none; border: none; color: var(--danger);
+            cursor: pointer; font-size: 20px; padding: 8px;
+        }
+
+        /* 设置面板 */
+        .settings-panel {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .settings-panel.show { display: block; }
+
+        .settings-panel h3 { font-size: 16px; margin-bottom: 20px; }
+
+        .setting-row {
+            display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+        }
+
+        .setting-row label {
+            width: 100px; font-size: 14px; color: var(--text-dim); flex-shrink: 0;
+        }
+
+        .sensitivity-options { display: flex; gap: 8px; }
+
+        .sensitivity-options button {
+            padding: 8px 20px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .sensitivity-options button.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .process-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .process-btn:hover { opacity: 0.9; }
+        .process-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .progress-bar.show { display: block; }
+
+        .progress-track {
+            height: 6px;
+            background: var(--surface2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.5s;
+        }
+
+        .progress-text { font-size: 14px; color: var(--text-dim); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .processing .progress-fill { animation: pulse 1.5s infinite; width: 70% !important; }
+
+        /* 结果区 */
+        .results-panel {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .results-panel.show { display: block; }
+
+        .results-header {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 24px;
+        }
+
+        .results-header h3 { font-size: 16px; }
+
+        .stats {
+            display: flex; gap: 24px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+        /* 预览区 */
+        .preview-area {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: center;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .preview-area img {
+            max-width: 100%;
+            max-height: 600px;
+            border-radius: 4px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .page-nav {
+            display: flex; align-items: center; gap: 16px;
+            margin-top: 16px;
+        }
+
+        .page-nav button {
+            padding: 8px 16px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .page-nav button:hover { border-color: var(--primary); }
+        .page-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .page-info { font-size: 14px; color: var(--text-dim); }
+
+        /* 导出按钮 */
+        .export-row {
+            display: flex; gap: 12px;
+        }
+
+        .export-btn {
+            flex: 1; padding: 14px;
+            border-radius: 10px;
+            font-size: 14px; font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+
+        .export-pdf {
+            background: var(--primary);
+            color: white;
+            border: none;
+        }
+
+        .export-pdf:hover { background: var(--primary-hover); }
+
+        .export-images {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .export-images:hover { background: rgba(0, 206, 201, 0.1); }
+
+        /* DPI 选择 */
+        .export-options {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .export-options label { font-size: 13px; color: var(--text-dim); }
+
+        .export-options select {
+            padding: 6px 12px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        /* 隐藏的 input */
+        #fileInput { display: none; }
+
+        .spinner {
+            display: inline-block;
+            width: 18px; height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 32px; left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 12px 24px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.4s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.error { border-color: var(--danger); color: var(--danger); }
+        .toast.success { border-color: var(--success); color: var(--success); }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-inner">
+            <div class="logo">W</div>
+            <div class="header-text">
+                <h1>PDF Watermark Remover</h1>
+                <p>智能去除 PDF 水印 · 支持导出 PDF 和图片</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 步骤指示器 -->
+        <div class="steps">
+            <div class="step active" id="step1">
+                <div class="step-num">1</div>
+                <div class="step-label">上传 PDF</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-num">2</div>
+                <div class="step-label">去除水印</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-num">3</div>
+                <div class="step-label">预览 & 导出</div>
+            </div>
+        </div>
+
+        <!-- 上传区 -->
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">📄</div>
+            <h3>拖放 PDF 文件到这里</h3>
+            <p>或点击选择文件（最大 100MB）</p>
+            <button class="upload-btn">选择文件</button>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf">
+
+        <!-- 文件信息 -->
+        <div class="file-info" id="fileInfo">
+            <div class="file-icon">📑</div>
+            <div class="file-meta">
+                <div class="name" id="fileName"></div>
+                <div class="size" id="fileSize"></div>
+            </div>
+            <button class="file-remove" id="fileRemove" title="移除文件">✕</button>
+        </div>
+
+        <!-- 设置面板 -->
+        <div class="settings-panel" id="settingsPanel">
+            <h3>处理设置</h3>
+            <div class="setting-row">
+                <label>检测灵敏度</label>
+                <div class="sensitivity-options" id="sensitivityOptions">
+                    <button data-value="low">低</button>
+                    <button data-value="medium" class="active">中</button>
+                    <button data-value="high">高</button>
+                </div>
+            </div>
+            <div style="margin-top: 8px; margin-bottom: 20px;">
+                <small style="color: var(--text-dim);">低灵敏度：仅去除明显水印 | 中灵敏度：推荐 | 高灵敏度：激进去除，可能误删部分内容</small>
+            </div>
+            <button class="process-btn" id="processBtn">开始去除水印</button>
+        </div>
+
+        <!-- 进度条 -->
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-text">正在处理中，请稍候...</div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- 结果区 -->
+        <div class="results-panel" id="resultsPanel">
+            <div class="results-header">
+                <h3>处理结果</h3>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="statPages">0</div>
+                        <div class="stat-label">总页数</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="statText">0</div>
+                        <div class="stat-label">文本水印</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="statImage">0</div>
+                        <div class="stat-label">图片水印</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-area" id="previewArea">
+                <img id="previewImg" alt="页面预览" />
+                <div class="page-nav">
+                    <button id="prevPage">← 上一页</button>
+                    <span class="page-info" id="pageInfo">第 1 页 / 共 1 页</span>
+                    <button id="nextPage">下一页 →</button>
+                </div>
+            </div>
+
+            <div class="export-options">
+                <label>图片 DPI：</label>
+                <select id="dpiSelect">
+                    <option value="150">150 DPI（快速）</option>
+                    <option value="200" selected>200 DPI（推荐）</option>
+                    <option value="300">300 DPI（高清）</option>
+                </select>
+                <label style="margin-left: 16px;">图片格式：</label>
+                <select id="formatSelect">
+                    <option value="png" selected>PNG</option>
+                    <option value="jpg">JPG</option>
+                </select>
+            </div>
+
+            <div class="export-row">
+                <button class="export-btn export-pdf" id="exportPdf">
+                    📥 导出 PDF
+                </button>
+                <button class="export-btn export-images" id="exportImages">
+                    🖼️ 导出图片（每页一张）
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const state = {
+            taskId: null,
+            filename: null,
+            currentPage: 1,
+            totalPages: 0,
+            sensitivity: 'medium',
+        };
+
+        // DOM
+        const $ = id => document.getElementById(id);
+        const uploadZone = $('uploadZone');
+        const fileInput = $('fileInput');
+        const fileInfo = $('fileInfo');
+        const settingsPanel = $('settingsPanel');
+        const progressBar = $('progressBar');
+        const resultsPanel = $('resultsPanel');
+
+        // 步骤切换
+        function setStep(n) {
+            document.querySelectorAll('.step').forEach((el, i) => {
+                el.classList.remove('active', 'done');
+                if (i + 1 < n) el.classList.add('done');
+                if (i + 1 === n) el.classList.add('active');
+            });
+        }
+
+        // Toast
+        function toast(msg, type = 'success') {
+            const t = $('toast');
+            t.textContent = msg;
+            t.className = 'toast show ' + type;
+            setTimeout(() => t.className = 'toast', 3000);
+        }
+
+        // 文件大小格式化
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // 上传区事件
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.toLowerCase().endsWith('.pdf')) {
+                handleFile(file);
+            } else {
+                toast('请上传 PDF 文件', 'error');
+            }
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files[0]) handleFile(fileInput.files[0]);
+        });
+
+        // 处理文件上传
+        async function handleFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (res.ok) {
+                    state.taskId = data.task_id;
+                    state.filename = data.filename;
+
+                    $('fileName').textContent = file.name;
+                    $('fileSize').textContent = formatSize(file.size);
+
+                    uploadZone.style.display = 'none';
+                    fileInfo.classList.add('show');
+                    settingsPanel.classList.add('show');
+
+                    setStep(2);
+                    toast('文件上传成功');
+                } else {
+                    toast(data.error || '上传失败', 'error');
+                }
+            } catch (err) {
+                toast('网络错误', 'error');
+            }
+        }
+
+        // 移除文件
+        $('fileRemove').addEventListener('click', () => {
+            state.taskId = null;
+            state.filename = null;
+            fileInfo.classList.remove('show');
+            settingsPanel.classList.remove('show');
+            resultsPanel.classList.remove('show');
+            progressBar.classList.remove('show');
+            uploadZone.style.display = '';
+            fileInput.value = '';
+            setStep(1);
+        });
+
+        // 灵敏度选择
+        $('sensitivityOptions').addEventListener('click', e => {
+            if (e.target.tagName === 'BUTTON') {
+                document.querySelectorAll('.sensitivity-options button').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                state.sensitivity = e.target.dataset.value;
+            }
+        });
+
+        // 处理按钮
+        $('processBtn').addEventListener('click', async () => {
+            const btn = $('processBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> 处理中...';
+
+            settingsPanel.classList.remove('show');
+            progressBar.classList.add('show');
+            progressBar.classList.add('processing');
+
+            try {
+                const res = await fetch('/api/process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_id: state.taskId,
+                        filename: state.filename,
+                        sensitivity: state.sensitivity,
+                    }),
+                });
+
+                const data = await res.json();
+
+                progressBar.classList.remove('processing');
+                $('progressFill').style.width = '100%';
+
+                if (res.ok) {
+                    setTimeout(() => {
+                        progressBar.classList.remove('show');
+                        showResults(data);
+                    }, 500);
+                } else {
+                    progressBar.classList.remove('show');
+                    settingsPanel.classList.add('show');
+                    toast(data.error || '处理失败', 'error');
+                }
+            } catch (err) {
+                progressBar.classList.remove('show', 'processing');
+                settingsPanel.classList.add('show');
+                toast('处理出错: ' + err.message, 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = '开始去除水印';
+        });
+
+        // 显示结果
+        async function showResults(data) {
+            const stats = data.stats;
+            $('statPages').textContent = stats.pages;
+            $('statText').textContent = stats.text_removed;
+            $('statImage').textContent = stats.image_removed;
+
+            state.totalPages = stats.pages;
+            state.currentPage = 1;
+
+            resultsPanel.classList.add('show');
+            setStep(3);
+
+            loadPreview();
+            toast(`处理完成！去除了 ${stats.text_removed} 个文本水印和 ${stats.image_removed} 个图片水印`);
+        }
+
+        // 加载预览
+        function loadPreview() {
+            const img = $('previewImg');
+            img.src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
+            $('pageInfo').textContent = `第 ${state.currentPage} 页 / 共 ${state.totalPages} 页`;
+            $('prevPage').disabled = state.currentPage <= 1;
+            $('nextPage').disabled = state.currentPage >= state.totalPages;
+        }
+
+        $('prevPage').addEventListener('click', () => {
+            if (state.currentPage > 1) {
+                state.currentPage--;
+                loadPreview();
+            }
+        });
+
+        $('nextPage').addEventListener('click', () => {
+            if (state.currentPage < state.totalPages) {
+                state.currentPage++;
+                loadPreview();
+            }
+        });
+
+        // 导出 PDF
+        $('exportPdf').addEventListener('click', () => {
+            window.location.href = `/api/export/pdf/${state.taskId}`;
+        });
+
+        // 导出图片
+        $('exportImages').addEventListener('click', () => {
+            const dpi = $('dpiSelect').value;
+            const fmt = $('formatSelect').value;
+            window.location.href = `/api/export/images/${state.taskId}?dpi=${dpi}&format=${fmt}`;
+        });
+    </script>
+</body>
+</html>
