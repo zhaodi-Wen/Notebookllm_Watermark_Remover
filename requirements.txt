@@ -4,4 +4,4 @@ Pillow==11.1.0
 numpy==1.26.4
 gunicorn==23.0.0
 requests==2.32.3
-vercel_blob==0.3.2
+vercel_blob==0.4.2

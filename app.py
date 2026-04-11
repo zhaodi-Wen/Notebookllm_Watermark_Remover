@@ -705,7 +705,9 @@ def _blob_upload(file_path, blob_name):
     import vercel_blob
     with open(file_path, 'rb') as f:
         resp = vercel_blob.put(blob_name, f.read(), multipart=True)
-    return resp.get('url', '')
+    if isinstance(resp, dict):
+        return resp.get('url', '')
+    return getattr(resp, 'url', '')
 
 
 def _blob_delete(blob_url):
