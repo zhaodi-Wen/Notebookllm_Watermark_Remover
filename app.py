@@ -780,5 +780,66 @@ def export_images(task_id):
     )
 
 
+@app.route('/api/export/longimage/<task_id>')
+def export_long_image(task_id):
+    """将所有页面垂直拼接成一张长图导出"""
+    from PIL import Image as PILImage
+
+    dpi = request.args.get('dpi', 200, type=int)
+    fmt = request.args.get('format', 'png')
+    if fmt not in ('png', 'jpg', 'jpeg'):
+        fmt = 'png'
+
+    output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+    pdf_files = [f for f in os.listdir(output_dir) if f.endswith('.pdf')]
+    if not pdf_files:
+        return jsonify({'error': '未找到文件'}), 404
+
+    pdf_path = os.path.join(output_dir, pdf_files[0])
+
+    # 逐页渲染为像素图
+    doc = fitz.open(pdf_path)
+    zoom = dpi / 72
+    matrix = fitz.Matrix(zoom, zoom)
+    page_images = []
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        pix = page.get_pixmap(matrix=matrix)
+        img = PILImage.open(io.BytesIO(pix.tobytes("png"))).convert("RGB")
+        page_images.append(img)
+    doc.close()
+
+    if not page_images:
+        return jsonify({'error': '无页面可合并'}), 500
+
+    # 以最大宽度为准，垂直拼接
+    max_width = max(img.width for img in page_images)
+    total_height = sum(img.height for img in page_images)
+
+    long_img = PILImage.new("RGB", (max_width, total_height), (255, 255, 255))
+    y_offset = 0
+    for img in page_images:
+        # 宽度不足时居中
+        x_offset = (max_width - img.width) // 2
+        long_img.paste(img, (x_offset, y_offset))
+        y_offset += img.height
+
+    buf = io.BytesIO()
+    save_fmt = 'JPEG' if fmt in ('jpg', 'jpeg') else 'PNG'
+    save_kwargs = {'quality': 90} if save_fmt == 'JPEG' else {}
+    long_img.save(buf, format=save_fmt, **save_kwargs)
+    buf.seek(0)
+
+    base_name = os.path.splitext(pdf_files[0])[0]
+    ext = 'jpg' if save_fmt == 'JPEG' else 'png'
+    mimetype = 'image/jpeg' if save_fmt == 'JPEG' else 'image/png'
+    return send_file(
+        buf,
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=f'{base_name}_long.{ext}'
+    )
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

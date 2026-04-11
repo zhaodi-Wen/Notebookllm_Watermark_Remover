@@ -1,6 +1,6 @@
 # PDF Watermark Remover
 
-自动检测并去除 PDF 文件中的水印，支持 NotebookLM 等工具导出的图片型 PDF 和传统结构型 PDF。提供 Web UI 界面，支持上传、预览、导出 PDF 和每页图片。
+自动检测并去除 PDF 文件中的水印，支持 NotebookLM 等工具导出的图片型 PDF 和传统结构型 PDF。提供 Web UI 界面，支持上传、预览、导出 PDF、每页图片和长图拼接。
 
 ## 效果展示
 
@@ -33,6 +33,8 @@
 - **Web UI** — 拖放上传、灵敏度可调、逐页预览
 - **导出 PDF** — 下载去水印后的完整 PDF 文件
 - **导出图片** — 每页导出一张图片（PNG/JPG），DPI 可选，ZIP 打包下载
+- **导出长图** — 将所有页面按顺序垂直拼接为一张长图，支持 PNG/JPG 格式
+- **多语言界面** — 支持 8 种语言，右上角下拉切换，即时生效
 
 ## 快速开始
 
@@ -56,18 +58,18 @@ python app.py
 2. 选择检测灵敏度（低 / 中 / 高）
 3. 点击「开始去除水印」
 4. 预览结果，翻页浏览
-5. 导出 PDF 或图片
+5. 导出 PDF、每页图片或长图
 
 ## 项目结构
 
 ```
 ├── app.py                 # Flask 后端 + WatermarkRemover 引擎
 ├── templates/
-│   └── index.html         # Web 前端 UI
+│   └── index.html         # Web 前端 UI（含 i18n 多语言）
 ├── requirements.txt       # Python 依赖
 ├── image/                 # README 示例图片
-├── uploads/               # 上传文件临时目录（运行时生成）
-└── outputs/               # 处理结果输出目录（运行时生成）
+├── uploads/               # 上传文件目录（运行时生成，按文件名命名）
+└── outputs/               # 处理结果目录（运行时生成，按文件名命名）
 ```
 
 ## 技术栈
@@ -77,7 +79,7 @@ python app.py
 | 后端 | Python + Flask |
 | PDF 引擎 | PyMuPDF (fitz) |
 | 图像处理 | Pillow + NumPy |
-| 前端 | 原生 HTML/CSS/JS，暗色主题 |
+| 前端 | 原生 HTML/CSS/JS，暗色主题，内置 i18n |
 
 ## 核心算法
 
@@ -104,6 +106,21 @@ python app.py
 | 中（medium） | 推荐，平衡效果与安全 |
 | 高（high） | 激进去除，可能误删部分浅色内容 |
 
+## 多语言支持
+
+右上角下拉菜单即时切换，支持以下语言：
+
+| 语言 | 代码 |
+|------|------|
+| 🇨🇳 中文简体 | zh |
+| 🇺🇸 English | en |
+| 🇯🇵 日本語 | ja |
+| 🇰🇷 한국어 | ko |
+| 🇪🇸 Español | es |
+| 🇫🇷 Français | fr |
+| 🇩🇪 Deutsch | de |
+| 🇧🇷 Português | pt |
+
 ## API 接口
 
 | 方法 | 路径 | 说明 |
@@ -114,6 +131,21 @@ python app.py
 | GET | `/api/page_count/{task_id}` | 获取总页数 |
 | GET | `/api/export/pdf/{task_id}` | 下载去水印 PDF |
 | GET | `/api/export/images/{task_id}` | 下载每页图片 ZIP（参数：dpi, format） |
+| GET | `/api/export/longimage/{task_id}` | 下载长图（参数：dpi, format） |
+
+## 更新日志
+
+### v1.2.0
+- **新增** 导出长图功能：将所有页面按顺序垂直拼接为一张完整长图
+- **新增** 多语言支持：8 种语言（中、英、日、韩、西、法、德、葡），右上角下拉切换
+- **优化** 文件夹命名：`uploads/` 和 `outputs/` 目录改为以上传文件名命名（格式：`{文件名}_{6位ID}`），方便识别
+
+### v1.1.0
+- **修复** 水印去除不彻底：改进前景检测阈值（diff > 8）和背景采样策略
+- **修复** 覆盖范围过大误伤正文：智能背景采样找区域内最空白行，精确定位水印
+
+### v1.0.0
+- 初始版本：像素级水印清除 + 结构层水印清除 + Web UI
 
 ## 依赖
 
@@ -127,3 +159,4 @@ gunicorn==23.0.0
 ## License
 
 MIT
+

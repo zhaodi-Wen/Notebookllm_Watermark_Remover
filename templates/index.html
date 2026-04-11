@@ -356,6 +356,14 @@
 
         .export-images:hover { background: rgba(0, 206, 201, 0.1); }
 
+        .export-long {
+            background: transparent;
+            color: #a29bfe;
+            border: 1px solid #a29bfe;
+        }
+
+        .export-long:hover { background: rgba(162, 155, 254, 0.1); }
+
         /* DPI 选择 */
         .export-options {
             display: flex; align-items: center; gap: 12px;
@@ -408,6 +416,25 @@
 
         .toast.error { border-color: var(--danger); color: var(--danger); }
         .toast.success { border-color: var(--success); color: var(--success); }
+
+        /* 语言切换 */
+        .lang-switch {
+            margin-left: auto;
+        }
+        .lang-select {
+            padding: 7px 12px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .lang-select:hover, .lang-select:focus {
+            border-color: var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -416,7 +443,19 @@
             <div class="logo">W</div>
             <div class="header-text">
                 <h1>PDF Watermark Remover</h1>
-                <p>智能去除 PDF 水印 · 支持导出 PDF 和图片</p>
+                <p data-i18n="subtitle">智能去除 PDF 水印 · 支持导出 PDF 和图片</p>
+            </div>
+            <div class="lang-switch">
+                <select id="langSelect" class="lang-select">
+                    <option value="zh">🇨🇳 中文</option>
+                    <option value="en">🇺🇸 English</option>
+                    <option value="ja">🇯🇵 日本語</option>
+                    <option value="ko">🇰🇷 한국어</option>
+                    <option value="es">🇪🇸 Español</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="pt">🇧🇷 Português</option>
+                </select>
             </div>
         </div>
     </header>
@@ -426,24 +465,24 @@
         <div class="steps">
             <div class="step active" id="step1">
                 <div class="step-num">1</div>
-                <div class="step-label">上传 PDF</div>
+                <div class="step-label" data-i18n="step1">上传 PDF</div>
             </div>
             <div class="step" id="step2">
                 <div class="step-num">2</div>
-                <div class="step-label">去除水印</div>
+                <div class="step-label" data-i18n="step2">去除水印</div>
             </div>
             <div class="step" id="step3">
                 <div class="step-num">3</div>
-                <div class="step-label">预览 & 导出</div>
+                <div class="step-label" data-i18n="step3">预览 & 导出</div>
             </div>
         </div>
 
         <!-- 上传区 -->
         <div class="upload-zone" id="uploadZone">
             <div class="upload-icon">📄</div>
-            <h3>拖放 PDF 文件到这里</h3>
-            <p>或点击选择文件（最大 100MB）</p>
-            <button class="upload-btn">选择文件</button>
+            <h3 data-i18n="uploadTitle">拖放 PDF 文件到这里</h3>
+            <p data-i18n="uploadSub">或点击选择文件（最大 100MB）</p>
+            <button class="upload-btn" data-i18n="uploadBtn">选择文件</button>
         </div>
         <input type="file" id="fileInput" accept=".pdf">
 
@@ -459,24 +498,24 @@
 
         <!-- 设置面板 -->
         <div class="settings-panel" id="settingsPanel">
-            <h3>处理设置</h3>
+            <h3 data-i18n="settingsTitle">处理设置</h3>
             <div class="setting-row">
-                <label>检测灵敏度</label>
+                <label data-i18n="sensitivityLabel">检测灵敏度</label>
                 <div class="sensitivity-options" id="sensitivityOptions">
-                    <button data-value="low">低</button>
-                    <button data-value="medium" class="active">中</button>
-                    <button data-value="high">高</button>
+                    <button data-value="low" data-i18n="sensLow">低</button>
+                    <button data-value="medium" class="active" data-i18n="sensMedium">中</button>
+                    <button data-value="high" data-i18n="sensHigh">高</button>
                 </div>
             </div>
             <div style="margin-top: 8px; margin-bottom: 20px;">
-                <small style="color: var(--text-dim);">低灵敏度：仅去除明显水印 | 中灵敏度：推荐 | 高灵敏度：激进去除，可能误删部分内容</small>
+                <small style="color: var(--text-dim);" data-i18n="sensitivityHint">低灵敏度：仅去除明显水印 | 中灵敏度：推荐 | 高灵敏度：激进去除，可能误删部分内容</small>
             </div>
-            <button class="process-btn" id="processBtn">开始去除水印</button>
+            <button class="process-btn" id="processBtn" data-i18n="processBtn">开始去除水印</button>
         </div>
 
         <!-- 进度条 -->
         <div class="progress-bar" id="progressBar">
-            <div class="progress-text">正在处理中，请稍候...</div>
+            <div class="progress-text" data-i18n="processing">正在处理中，请稍候...</div>
             <div class="progress-track">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
@@ -485,19 +524,19 @@
         <!-- 结果区 -->
         <div class="results-panel" id="resultsPanel">
             <div class="results-header">
-                <h3>处理结果</h3>
+                <h3 data-i18n="resultsTitle">处理结果</h3>
                 <div class="stats">
                     <div class="stat">
                         <div class="stat-value" id="statPages">0</div>
-                        <div class="stat-label">总页数</div>
+                        <div class="stat-label" data-i18n="statPages">总页数</div>
                     </div>
                     <div class="stat">
                         <div class="stat-value" id="statText">0</div>
-                        <div class="stat-label">文本水印</div>
+                        <div class="stat-label" data-i18n="statText">文本水印</div>
                     </div>
                     <div class="stat">
                         <div class="stat-value" id="statImage">0</div>
-                        <div class="stat-label">图片水印</div>
+                        <div class="stat-label" data-i18n="statImage">图片水印</div>
                     </div>
                 </div>
             </div>
@@ -505,32 +544,35 @@
             <div class="preview-area" id="previewArea">
                 <img id="previewImg" alt="页面预览" />
                 <div class="page-nav">
-                    <button id="prevPage">← 上一页</button>
-                    <span class="page-info" id="pageInfo">第 1 页 / 共 1 页</span>
-                    <button id="nextPage">下一页 →</button>
+                    <button id="prevPage" data-i18n="prevPage">← 上一页</button>
+                    <span class="page-info" id="pageInfo"></span>
+                    <button id="nextPage" data-i18n="nextPage">下一页 →</button>
                 </div>
             </div>
 
             <div class="export-options">
-                <label>图片 DPI：</label>
+                <label data-i18n="dpiLabel">图片 DPI：</label>
                 <select id="dpiSelect">
-                    <option value="150">150 DPI（快速）</option>
-                    <option value="200" selected>200 DPI（推荐）</option>
-                    <option value="300">300 DPI（高清）</option>
+                    <option value="150" data-i18n="dpi150">150 DPI（快速）</option>
+                    <option value="200" selected data-i18n="dpi200">200 DPI（推荐）</option>
+                    <option value="300" data-i18n="dpi300">300 DPI（高清）</option>
                 </select>
-                <label style="margin-left: 16px;">图片格式：</label>
+                <label style="margin-left: 16px;" data-i18n="fmtLabel">图片格式：</label>
                 <select id="formatSelect">
-                    <option value="png" selected>PNG</option>
+                    <option value="png">PNG</option>
                     <option value="jpg">JPG</option>
                 </select>
             </div>
 
             <div class="export-row">
-                <button class="export-btn export-pdf" id="exportPdf">
+                <button class="export-btn export-pdf" id="exportPdf" data-i18n="exportPdf">
                     📥 导出 PDF
                 </button>
-                <button class="export-btn export-images" id="exportImages">
+                <button class="export-btn export-images" id="exportImages" data-i18n="exportImages">
                     🖼️ 导出图片（每页一张）
+                </button>
+                <button class="export-btn export-long" id="exportLong" data-i18n="exportLong">
+                    📜 导出长图
                 </button>
             </div>
         </div>
@@ -540,6 +582,366 @@
     <div class="toast" id="toast"></div>
 
     <script>
+        // ==================== i18n ====================
+        const i18n = {
+            zh: {
+                subtitle:      '智能去除 PDF 水印 · 支持导出 PDF 和图片',
+                step1:         '上传 PDF',
+                step2:         '去除水印',
+                step3:         '预览 & 导出',
+                uploadTitle:   '拖放 PDF 文件到这里',
+                uploadSub:     '或点击选择文件（最大 100MB）',
+                uploadBtn:     '选择文件',
+                settingsTitle: '处理设置',
+                sensitivityLabel: '检测灵敏度',
+                sensLow:       '低',
+                sensMedium:    '中',
+                sensHigh:      '高',
+                sensitivityHint: '低灵敏度：仅去除明显水印 | 中灵敏度：推荐 | 高灵敏度：激进去除，可能误删部分内容',
+                processBtn:    '开始去除水印',
+                processing:    '正在处理中，请稍候...',
+                processingBtn: '处理中...',
+                resultsTitle:  '处理结果',
+                statPages:     '总页数',
+                statText:      '文本水印',
+                statImage:     '图片水印',
+                prevPage:      '← 上一页',
+                nextPage:      '下一页 →',
+                dpiLabel:      '图片 DPI：',
+                fmtLabel:      '图片格式：',
+                dpi150:        '150 DPI（快速）',
+                dpi200:        '200 DPI（推荐）',
+                dpi300:        '300 DPI（高清）',
+                exportPdf:     '📥 导出 PDF',
+                exportImages:  '🖼️ 导出图片（每页一张）',
+                exportLong:    '📜 导出长图',
+                pageInfo:      (cur, total) => `第 ${cur} 页 / 共 ${total} 页`,
+                uploadOk:      '文件上传成功',
+                uploadFail:    '上传失败',
+                uploadPdfOnly: '请上传 PDF 文件',
+                networkErr:    '网络错误',
+                processFail:   '处理失败',
+                processErr:    (msg) => `处理出错: ${msg}`,
+                processOk:     (t, i) => `处理完成！去除了 ${t} 个文本水印和 ${i} 个图片水印`,
+                genLong:       '正在生成长图，请稍候...',
+            },
+            en: {
+                subtitle:      'Smart PDF Watermark Removal · Export PDF & Images',
+                step1:         'Upload PDF',
+                step2:         'Remove Watermark',
+                step3:         'Preview & Export',
+                uploadTitle:   'Drop PDF file here',
+                uploadSub:     'or click to select (max 100MB)',
+                uploadBtn:     'Select File',
+                settingsTitle: 'Settings',
+                sensitivityLabel: 'Sensitivity',
+                sensLow:       'Low',
+                sensMedium:    'Medium',
+                sensHigh:      'High',
+                sensitivityHint: 'Low: obvious watermarks only | Medium: recommended | High: aggressive, may affect content',
+                processBtn:    'Remove Watermark',
+                processing:    'Processing, please wait...',
+                processingBtn: 'Processing...',
+                resultsTitle:  'Results',
+                statPages:     'Pages',
+                statText:      'Text WM',
+                statImage:     'Image WM',
+                prevPage:      '← Prev',
+                nextPage:      'Next →',
+                dpiLabel:      'Image DPI:',
+                fmtLabel:      'Format:',
+                dpi150:        '150 DPI (Fast)',
+                dpi200:        '200 DPI (Recommended)',
+                dpi300:        '300 DPI (High Quality)',
+                exportPdf:     '📥 Export PDF',
+                exportImages:  '🖼️ Export Images (per page)',
+                exportLong:    '📜 Export Long Image',
+                pageInfo:      (cur, total) => `Page ${cur} / ${total}`,
+                uploadOk:      'File uploaded successfully',
+                uploadFail:    'Upload failed',
+                uploadPdfOnly: 'Please upload a PDF file',
+                networkErr:    'Network error',
+                processFail:   'Processing failed',
+                processErr:    (msg) => `Error: ${msg}`,
+                processOk:     (t, i) => `Done! Removed ${t} text and ${i} image watermarks`,
+                genLong:       'Generating long image, please wait...',
+            },
+            ja: {
+                subtitle:      'PDF 透かし自動除去 · PDF・画像エクスポート対応',
+                step1:         'PDF アップロード',
+                step2:         '透かし除去',
+                step3:         'プレビュー & エクスポート',
+                uploadTitle:   'PDF ファイルをここにドロップ',
+                uploadSub:     'またはクリックして選択（最大 100MB）',
+                uploadBtn:     'ファイル選択',
+                settingsTitle: '設定',
+                sensitivityLabel: '検出感度',
+                sensLow:       '低',
+                sensMedium:    '中',
+                sensHigh:      '高',
+                sensitivityHint: '低：明確な透かしのみ | 中：推奨 | 高：積極的除去、内容に影響する場合あり',
+                processBtn:    '透かしを除去',
+                processing:    '処理中、しばらくお待ちください...',
+                processingBtn: '処理中...',
+                resultsTitle:  '処理結果',
+                statPages:     '総ページ数',
+                statText:      'テキスト透かし',
+                statImage:     '画像透かし',
+                prevPage:      '← 前へ',
+                nextPage:      '次へ →',
+                dpiLabel:      '画像 DPI：',
+                fmtLabel:      '形式：',
+                dpi150:        '150 DPI（高速）',
+                dpi200:        '200 DPI（推奨）',
+                dpi300:        '300 DPI（高画質）',
+                exportPdf:     '📥 PDF エクスポート',
+                exportImages:  '🖼️ 画像エクスポート（1ページ1枚）',
+                exportLong:    '📜 長尺画像エクスポート',
+                pageInfo:      (cur, total) => `${cur} / ${total} ページ`,
+                uploadOk:      'ファイルのアップロード成功',
+                uploadFail:    'アップロード失敗',
+                uploadPdfOnly: 'PDF ファイルをアップロードしてください',
+                networkErr:    'ネットワークエラー',
+                processFail:   '処理失敗',
+                processErr:    (msg) => `エラー: ${msg}`,
+                processOk:     (t, i) => `完了！テキスト透かし ${t} 個、画像透かし ${i} 個を除去しました`,
+                genLong:       '長尺画像を生成中...',
+            },
+            ko: {
+                subtitle:      'PDF 워터마크 자동 제거 · PDF 및 이미지 내보내기',
+                step1:         'PDF 업로드',
+                step2:         '워터마크 제거',
+                step3:         '미리보기 & 내보내기',
+                uploadTitle:   'PDF 파일을 여기에 드롭',
+                uploadSub:     '또는 클릭하여 선택 (최대 100MB)',
+                uploadBtn:     '파일 선택',
+                settingsTitle: '설정',
+                sensitivityLabel: '감지 민감도',
+                sensLow:       '낮음',
+                sensMedium:    '중간',
+                sensHigh:      '높음',
+                sensitivityHint: '낮음: 명확한 워터마크만 | 중간: 권장 | 높음: 적극적 제거, 내용에 영향 줄 수 있음',
+                processBtn:    '워터마크 제거 시작',
+                processing:    '처리 중, 잠시 기다려 주세요...',
+                processingBtn: '처리 중...',
+                resultsTitle:  '처리 결과',
+                statPages:     '총 페이지',
+                statText:      '텍스트 워터마크',
+                statImage:     '이미지 워터마크',
+                prevPage:      '← 이전',
+                nextPage:      '다음 →',
+                dpiLabel:      '이미지 DPI:',
+                fmtLabel:      '형식:',
+                dpi150:        '150 DPI (빠름)',
+                dpi200:        '200 DPI (권장)',
+                dpi300:        '300 DPI (고화질)',
+                exportPdf:     '📥 PDF 내보내기',
+                exportImages:  '🖼️ 이미지 내보내기 (페이지별)',
+                exportLong:    '📜 긴 이미지 내보내기',
+                pageInfo:      (cur, total) => `${cur} / ${total} 페이지`,
+                uploadOk:      '파일 업로드 성공',
+                uploadFail:    '업로드 실패',
+                uploadPdfOnly: 'PDF 파일을 업로드하세요',
+                networkErr:    '네트워크 오류',
+                processFail:   '처리 실패',
+                processErr:    (msg) => `오류: ${msg}`,
+                processOk:     (t, i) => `완료! 텍스트 워터마크 ${t}개, 이미지 워터마크 ${i}개 제거`,
+                genLong:       '긴 이미지 생성 중...',
+            },
+            es: {
+                subtitle:      'Eliminación inteligente de marcas de agua · Exportar PDF e imágenes',
+                step1:         'Subir PDF',
+                step2:         'Eliminar marca',
+                step3:         'Vista previa & Exportar',
+                uploadTitle:   'Arrastra el PDF aquí',
+                uploadSub:     'o haz clic para seleccionar (máx. 100MB)',
+                uploadBtn:     'Seleccionar archivo',
+                settingsTitle: 'Configuración',
+                sensitivityLabel: 'Sensibilidad',
+                sensLow:       'Baja',
+                sensMedium:    'Media',
+                sensHigh:      'Alta',
+                sensitivityHint: 'Baja: solo marcas obvias | Media: recomendado | Alta: agresivo, puede afectar contenido',
+                processBtn:    'Eliminar marca de agua',
+                processing:    'Procesando, por favor espera...',
+                processingBtn: 'Procesando...',
+                resultsTitle:  'Resultados',
+                statPages:     'Páginas',
+                statText:      'Marca texto',
+                statImage:     'Marca imagen',
+                prevPage:      '← Anterior',
+                nextPage:      'Siguiente →',
+                dpiLabel:      'DPI imagen:',
+                fmtLabel:      'Formato:',
+                dpi150:        '150 DPI (Rápido)',
+                dpi200:        '200 DPI (Recomendado)',
+                dpi300:        '300 DPI (Alta calidad)',
+                exportPdf:     '📥 Exportar PDF',
+                exportImages:  '🖼️ Exportar imágenes (por página)',
+                exportLong:    '📜 Exportar imagen larga',
+                pageInfo:      (cur, total) => `Página ${cur} / ${total}`,
+                uploadOk:      'Archivo subido correctamente',
+                uploadFail:    'Error al subir',
+                uploadPdfOnly: 'Por favor sube un archivo PDF',
+                networkErr:    'Error de red',
+                processFail:   'Error al procesar',
+                processErr:    (msg) => `Error: ${msg}`,
+                processOk:     (t, i) => `¡Listo! Eliminadas ${t} marcas de texto y ${i} de imagen`,
+                genLong:       'Generando imagen larga...',
+            },
+            fr: {
+                subtitle:      'Suppression intelligente des filigranes · Export PDF et images',
+                step1:         'Importer PDF',
+                step2:         'Supprimer filigrane',
+                step3:         'Aperçu & Export',
+                uploadTitle:   'Déposez le PDF ici',
+                uploadSub:     'ou cliquez pour sélectionner (max 100Mo)',
+                uploadBtn:     'Choisir un fichier',
+                settingsTitle: 'Paramètres',
+                sensitivityLabel: 'Sensibilité',
+                sensLow:       'Faible',
+                sensMedium:    'Moyenne',
+                sensHigh:      'Élevée',
+                sensitivityHint: 'Faible: filigranes évidents uniquement | Moyenne: recommandé | Élevée: agressif, peut affecter le contenu',
+                processBtn:    'Supprimer le filigrane',
+                processing:    'Traitement en cours...',
+                processingBtn: 'En cours...',
+                resultsTitle:  'Résultats',
+                statPages:     'Pages',
+                statText:      'Filigrane texte',
+                statImage:     'Filigrane image',
+                prevPage:      '← Précédent',
+                nextPage:      'Suivant →',
+                dpiLabel:      'DPI image:',
+                fmtLabel:      'Format:',
+                dpi150:        '150 DPI (Rapide)',
+                dpi200:        '200 DPI (Recommandé)',
+                dpi300:        '300 DPI (Haute qualité)',
+                exportPdf:     '📥 Exporter PDF',
+                exportImages:  '🖼️ Exporter images (par page)',
+                exportLong:    '📜 Exporter image longue',
+                pageInfo:      (cur, total) => `Page ${cur} / ${total}`,
+                uploadOk:      'Fichier importé avec succès',
+                uploadFail:    'Échec de l\'import',
+                uploadPdfOnly: 'Veuillez importer un fichier PDF',
+                networkErr:    'Erreur réseau',
+                processFail:   'Échec du traitement',
+                processErr:    (msg) => `Erreur: ${msg}`,
+                processOk:     (t, i) => `Terminé ! ${t} filigranes texte et ${i} image supprimés`,
+                genLong:       'Génération de l\'image longue...',
+            },
+            de: {
+                subtitle:      'Intelligente PDF-Wasserzeichen-Entfernung · PDF & Bilder exportieren',
+                step1:         'PDF hochladen',
+                step2:         'Wasserzeichen entfernen',
+                step3:         'Vorschau & Export',
+                uploadTitle:   'PDF-Datei hier ablegen',
+                uploadSub:     'oder klicken zum Auswählen (max. 100MB)',
+                uploadBtn:     'Datei auswählen',
+                settingsTitle: 'Einstellungen',
+                sensitivityLabel: 'Empfindlichkeit',
+                sensLow:       'Niedrig',
+                sensMedium:    'Mittel',
+                sensHigh:      'Hoch',
+                sensitivityHint: 'Niedrig: nur offensichtliche | Mittel: empfohlen | Hoch: aggressiv, kann Inhalt beeinflussen',
+                processBtn:    'Wasserzeichen entfernen',
+                processing:    'Wird verarbeitet...',
+                processingBtn: 'Verarbeitung...',
+                resultsTitle:  'Ergebnisse',
+                statPages:     'Seiten',
+                statText:      'Text-WZ',
+                statImage:     'Bild-WZ',
+                prevPage:      '← Zurück',
+                nextPage:      'Weiter →',
+                dpiLabel:      'Bild-DPI:',
+                fmtLabel:      'Format:',
+                dpi150:        '150 DPI (Schnell)',
+                dpi200:        '200 DPI (Empfohlen)',
+                dpi300:        '300 DPI (Hohe Qualität)',
+                exportPdf:     '📥 PDF exportieren',
+                exportImages:  '🖼️ Bilder exportieren (pro Seite)',
+                exportLong:    '📜 Langes Bild exportieren',
+                pageInfo:      (cur, total) => `Seite ${cur} / ${total}`,
+                uploadOk:      'Datei erfolgreich hochgeladen',
+                uploadFail:    'Upload fehlgeschlagen',
+                uploadPdfOnly: 'Bitte eine PDF-Datei hochladen',
+                networkErr:    'Netzwerkfehler',
+                processFail:   'Verarbeitung fehlgeschlagen',
+                processErr:    (msg) => `Fehler: ${msg}`,
+                processOk:     (t, i) => `Fertig! ${t} Text- und ${i} Bild-Wasserzeichen entfernt`,
+                genLong:       'Langes Bild wird erstellt...',
+            },
+            pt: {
+                subtitle:      'Remoção inteligente de marcas d\'água · Exportar PDF e imagens',
+                step1:         'Enviar PDF',
+                step2:         'Remover marca d\'água',
+                step3:         'Visualizar & Exportar',
+                uploadTitle:   'Arraste o PDF aqui',
+                uploadSub:     'ou clique para selecionar (máx. 100MB)',
+                uploadBtn:     'Selecionar arquivo',
+                settingsTitle: 'Configurações',
+                sensitivityLabel: 'Sensibilidade',
+                sensLow:       'Baixa',
+                sensMedium:    'Média',
+                sensHigh:      'Alta',
+                sensitivityHint: 'Baixa: apenas marcas óbvias | Média: recomendado | Alta: agressivo, pode afetar conteúdo',
+                processBtn:    'Remover marca d\'água',
+                processing:    'Processando, aguarde...',
+                processingBtn: 'Processando...',
+                resultsTitle:  'Resultados',
+                statPages:     'Páginas',
+                statText:      'Marca texto',
+                statImage:     'Marca imagem',
+                prevPage:      '← Anterior',
+                nextPage:      'Próximo →',
+                dpiLabel:      'DPI da imagem:',
+                fmtLabel:      'Formato:',
+                dpi150:        '150 DPI (Rápido)',
+                dpi200:        '200 DPI (Recomendado)',
+                dpi300:        '300 DPI (Alta qualidade)',
+                exportPdf:     '📥 Exportar PDF',
+                exportImages:  '🖼️ Exportar imagens (por página)',
+                exportLong:    '📜 Exportar imagem longa',
+                pageInfo:      (cur, total) => `Página ${cur} / ${total}`,
+                uploadOk:      'Arquivo enviado com sucesso',
+                uploadFail:    'Falha no envio',
+                uploadPdfOnly: 'Por favor envie um arquivo PDF',
+                networkErr:    'Erro de rede',
+                processFail:   'Falha no processamento',
+                processErr:    (msg) => `Erro: ${msg}`,
+                processOk:     (t, i) => `Concluído! ${t} marcas de texto e ${i} de imagem removidas`,
+                genLong:       'Gerando imagem longa...',
+            },
+        };
+
+        const langLocale = {
+            zh: 'zh-CN', en: 'en', ja: 'ja', ko: 'ko',
+            es: 'es', fr: 'fr', de: 'de', pt: 'pt-BR',
+        };
+
+        let lang = 'zh';
+
+        function applyLang() {
+            const t = i18n[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] && typeof t[key] === 'string') el.textContent = t[key];
+            });
+            document.documentElement.lang = langLocale[lang] || lang;
+        }
+
+        document.getElementById('langSelect').addEventListener('change', function () {
+            lang = this.value;
+            applyLang();
+            if (state.totalPages > 0) updatePageInfo();
+        });
+
+        function T(key, ...args) {
+            const val = i18n[lang][key];
+            return typeof val === 'function' ? val(...args) : (val || key);
+        }
+
+        // ==================== State & DOM ====================
         const state = {
             taskId: null,
             filename: null,
@@ -600,7 +1002,7 @@
             if (file && file.name.toLowerCase().endsWith('.pdf')) {
                 handleFile(file);
             } else {
-                toast('请上传 PDF 文件', 'error');
+                toast(T('uploadPdfOnly'), 'error');
             }
         });
 
@@ -629,12 +1031,12 @@
                     settingsPanel.classList.add('show');
 
                     setStep(2);
-                    toast('文件上传成功');
+                    toast(T('uploadOk'));
                 } else {
-                    toast(data.error || '上传失败', 'error');
+                    toast(data.error || T('uploadFail'), 'error');
                 }
             } catch (err) {
-                toast('网络错误', 'error');
+                toast(T('networkErr'), 'error');
             }
         }
 
@@ -664,7 +1066,7 @@
         $('processBtn').addEventListener('click', async () => {
             const btn = $('processBtn');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> 处理中...';
+            btn.innerHTML = `<span class="spinner"></span> ${T('processingBtn')}`;
 
             settingsPanel.classList.remove('show');
             progressBar.classList.add('show');
@@ -694,16 +1096,16 @@
                 } else {
                     progressBar.classList.remove('show');
                     settingsPanel.classList.add('show');
-                    toast(data.error || '处理失败', 'error');
+                    toast(data.error || T('processFail'), 'error');
                 }
             } catch (err) {
                 progressBar.classList.remove('show', 'processing');
                 settingsPanel.classList.add('show');
-                toast('处理出错: ' + err.message, 'error');
+                toast(T('processErr', err.message), 'error');
             }
 
             btn.disabled = false;
-            btn.textContent = '开始去除水印';
+            btn.textContent = T('processBtn');
         });
 
         // 显示结果
@@ -720,14 +1122,18 @@
             setStep(3);
 
             loadPreview();
-            toast(`处理完成！去除了 ${stats.text_removed} 个文本水印和 ${stats.image_removed} 个图片水印`);
+            toast(T('processOk', stats.text_removed, stats.image_removed));
         }
 
         // 加载预览
+        function updatePageInfo() {
+            $('pageInfo').textContent = T('pageInfo', state.currentPage, state.totalPages);
+        }
+
         function loadPreview() {
             const img = $('previewImg');
             img.src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
-            $('pageInfo').textContent = `第 ${state.currentPage} 页 / 共 ${state.totalPages} 页`;
+            updatePageInfo();
             $('prevPage').disabled = state.currentPage <= 1;
             $('nextPage').disabled = state.currentPage >= state.totalPages;
         }
@@ -756,6 +1162,14 @@
             const dpi = $('dpiSelect').value;
             const fmt = $('formatSelect').value;
             window.location.href = `/api/export/images/${state.taskId}?dpi=${dpi}&format=${fmt}`;
+        });
+
+        // 导出长图
+        $('exportLong').addEventListener('click', () => {
+            const dpi = $('dpiSelect').value;
+            const fmt = $('formatSelect').value;
+            toast(T('genLong'));
+            window.location.href = `/api/export/longimage/${state.taskId}?dpi=${dpi}&format=${fmt}`;
         });
     </script>
 </body>
