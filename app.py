@@ -974,11 +974,11 @@ def preview_page(task_id, page_num):
 @app.route('/api/export/image/<task_id>')
 def export_image_file(task_id):
     """导出去水印后的图片文件"""
-    output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+    task_dir = _get_task_dir(task_id)
     for ext in ('.png', '.jpg', '.jpeg', '.webp', '.bmp'):
-        for fname in os.listdir(output_dir):
+        for fname in os.listdir(task_dir):
             if fname.startswith('clean_') and fname.lower().endswith(ext):
-                fpath = os.path.join(output_dir, fname)
+                fpath = os.path.join(task_dir, fname)
                 mime = 'image/jpeg' if ext in ('.jpg', '.jpeg') else f'image/{ext.lstrip(".")}'
                 return send_file(fpath, as_attachment=True, download_name=fname, mimetype=mime)
     return jsonify({'error': '未找到处理后的图片'}), 404
@@ -989,46 +989,72 @@ def export_image_file(task_id):
 @app.route('/api/page_count/<task_id>')
 def page_count(task_id):
     """获取页数"""
-    output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
-    pdf_files = [f for f in os.listdir(output_dir) if f.endswith('.pdf')]
+    import glob
+    task_dir = _get_task_dir(task_id)
+    pdf_files = glob.glob(os.path.join(task_dir, 'clean_*.pdf'))
+    if not pdf_files:
+        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+        if os.path.isdir(output_dir):
+            pdf_files = [os.path.join(output_dir, f)
+                         for f in os.listdir(output_dir) if f.endswith('.pdf')]
     if not pdf_files:
         return jsonify({'error': '未找到文件'}), 404
 
-    pdf_path = os.path.join(output_dir, pdf_files[0])
-    doc = fitz.open(pdf_path)
+    doc = fitz.open(pdf_files[0])
     count = len(doc)
     doc.close()
     return jsonify({'count': count})
 
 
+def _get_task_dir(task_id):
+    """获取 task 目录，Vercel 用 /tmp，本地用 OUTPUT_FOLDER"""
+    if _IS_VERCEL:
+        return f'/tmp/{task_id}'
+    return os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+
+
 @app.route('/api/export/pdf/<task_id>')
 def export_pdf(task_id):
     """导出去水印后的 PDF"""
-    output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
-    pdf_files = [f for f in os.listdir(output_dir) if f.endswith('.pdf')]
+    import glob
+    task_dir = _get_task_dir(task_id)
+    pdf_files = glob.glob(os.path.join(task_dir, 'clean_*.pdf'))
+    if not pdf_files:
+        # 兼容本地模式目录结构
+        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+        if os.path.isdir(output_dir):
+            pdf_files = [os.path.join(output_dir, f)
+                         for f in os.listdir(output_dir) if f.endswith('.pdf')]
     if not pdf_files:
         return jsonify({'error': '未找到文件'}), 404
 
-    pdf_path = os.path.join(output_dir, pdf_files[0])
-    return send_file(pdf_path, as_attachment=True, download_name=pdf_files[0])
+    pdf_path = pdf_files[0]
+    return send_file(pdf_path, as_attachment=True,
+                     download_name=os.path.basename(pdf_path))
 
 
 @app.route('/api/export/images/<task_id>')
 def export_images(task_id):
     """导出为图片（ZIP 打包，每页一张）"""
+    import glob
     dpi = request.args.get('dpi', 200, type=int)
     fmt = request.args.get('format', 'png')
 
     if fmt not in ('png', 'jpg', 'jpeg'):
         fmt = 'png'
 
-    output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
-    pdf_files = [f for f in os.listdir(output_dir) if f.endswith('.pdf')]
+    task_dir = _get_task_dir(task_id)
+    pdf_files = glob.glob(os.path.join(task_dir, 'clean_*.pdf'))
+    if not pdf_files:
+        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+        if os.path.isdir(output_dir):
+            pdf_files = [os.path.join(output_dir, f)
+                         for f in os.listdir(output_dir) if f.endswith('.pdf')]
     if not pdf_files:
         return jsonify({'error': '未找到文件'}), 404
 
-    pdf_path = os.path.join(output_dir, pdf_files[0])
-    img_dir = os.path.join(output_dir, 'images')
+    pdf_path = pdf_files[0]
+    img_dir = os.path.join(task_dir, 'images')
     os.makedirs(img_dir, exist_ok=True)
 
     image_paths = export_pdf_to_images(pdf_path, img_dir, dpi=dpi, fmt=fmt)
@@ -1040,7 +1066,7 @@ def export_images(task_id):
             zf.write(img_path, os.path.basename(img_path))
 
     zip_buffer.seek(0)
-    base_name = os.path.splitext(pdf_files[0])[0]
+    base_name = os.path.splitext(os.path.basename(pdf_path))[0]
     return send_file(
         zip_buffer,
         mimetype='application/zip',
@@ -1052,6 +1078,7 @@ def export_images(task_id):
 @app.route('/api/export/longimage/<task_id>')
 def export_long_image(task_id):
     """将所有页面垂直拼接成一张长图导出"""
+    import glob
     from PIL import Image as PILImage
 
     dpi = request.args.get('dpi', 200, type=int)
@@ -1059,12 +1086,17 @@ def export_long_image(task_id):
     if fmt not in ('png', 'jpg', 'jpeg'):
         fmt = 'png'
 
-    output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
-    pdf_files = [f for f in os.listdir(output_dir) if f.endswith('.pdf')]
+    task_dir = _get_task_dir(task_id)
+    pdf_files = glob.glob(os.path.join(task_dir, 'clean_*.pdf'))
+    if not pdf_files:
+        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+        if os.path.isdir(output_dir):
+            pdf_files = [os.path.join(output_dir, f)
+                         for f in os.listdir(output_dir) if f.endswith('.pdf')]
     if not pdf_files:
         return jsonify({'error': '未找到文件'}), 404
 
-    pdf_path = os.path.join(output_dir, pdf_files[0])
+    pdf_path = pdf_files[0]
 
     # 逐页渲染为像素图
     doc = fitz.open(pdf_path)
@@ -1099,7 +1131,7 @@ def export_long_image(task_id):
     long_img.save(buf, format=save_fmt, **save_kwargs)
     buf.seek(0)
 
-    base_name = os.path.splitext(pdf_files[0])[0]
+    base_name = os.path.splitext(os.path.basename(pdf_path))[0]
     ext = 'jpg' if save_fmt == 'JPEG' else 'png'
     mimetype = 'image/jpeg' if save_fmt == 'JPEG' else 'image/png'
     return send_file(
