@@ -7,9 +7,14 @@ from flask import Flask, request, jsonify, send_file, render_template
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
-app.config['OUTPUT_FOLDER'] = os.path.join(os.path.dirname(__file__), 'outputs')
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
+
+# Vercel Serverless 环境使用 /tmp，本地开发使用项目目录
+_IS_VERCEL = os.environ.get('VERCEL') == '1'
+_BASE_DIR = '/tmp' if _IS_VERCEL else os.path.dirname(os.path.abspath(__file__))
+
+app.config['UPLOAD_FOLDER'] = os.path.join(_BASE_DIR, 'uploads')
+app.config['OUTPUT_FOLDER'] = os.path.join(_BASE_DIR, 'outputs')
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB（Vercel 限制）
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
