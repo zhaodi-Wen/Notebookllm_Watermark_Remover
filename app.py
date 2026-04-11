@@ -607,7 +607,69 @@ class WatermarkRemover:
         return score >= threshold
 
 
-def export_pdf_to_images(pdf_path, output_dir, dpi=200, fmt='png'):
+def remove_pixel_watermark_from_image(input_path, output_path):
+    """对单张图片进行像素级水印清除，复用 PDF 引擎的核心算法"""
+    from PIL import Image, ImageFilter
+    import numpy as np
+
+    pil_img = Image.open(input_path).convert("RGB")
+    img_np = np.array(pil_img)
+    h, w, _ = img_np.shape
+
+    # 右下角扫描区域（同 PDF 算法）
+    scan_h, scan_w = 30, 250
+    sy1, sx1 = h - scan_h, w - scan_w
+
+    region = img_np[sy1:h, sx1:w].copy()
+
+    # 智能背景采样
+    corner = region[-5:, -5:, :].reshape(-1, 3)
+    rough_bg = np.median(corner, axis=0)
+
+    best_rows = []
+    for ri in range(region.shape[0]):
+        row_diff = np.sqrt(np.sum((region[ri].astype(float) - rough_bg) ** 2, axis=1))
+        best_rows.append((( row_diff > 20).sum(), ri))
+    best_rows.sort()
+
+    bg_pixels = []
+    for _, ri in best_rows[:5]:
+        bg_pixels.append(region[ri])
+    bg_color = np.median(np.concatenate(bg_pixels, axis=0).reshape(-1, 3), axis=0)
+
+    diff = np.sqrt(np.sum((region.astype(float) - bg_color) ** 2, axis=2))
+    fg_mask = diff > 8
+
+    if not np.any(fg_mask):
+        # 没有检测到水印，直接复制原图
+        pil_img.save(output_path)
+        return {'cleaned': False}
+
+    mask_img = Image.fromarray((fg_mask * 255).astype(np.uint8))
+    mask_img = mask_img.filter(ImageFilter.MaxFilter(size=3))
+    final_mask = np.array(mask_img) > 128
+
+    alpha_img = Image.fromarray((final_mask * 255).astype(np.uint8))
+    alpha_img = alpha_img.filter(ImageFilter.GaussianBlur(radius=1))
+    alpha = np.array(alpha_img).astype(float) / 255.0
+
+    fill = np.full_like(region, bg_color.astype(np.uint8))
+    for c in range(3):
+        region[:, :, c] = (
+            alpha * fill[:, :, c].astype(float) +
+            (1 - alpha) * region[:, :, c].astype(float)
+        ).clip(0, 255).astype(np.uint8)
+
+    img_np[sy1:h, sx1:w] = region
+
+    ext = os.path.splitext(output_path)[1].lower()
+    fmt = 'JPEG' if ext in ('.jpg', '.jpeg') else 'PNG'
+    save_kwargs = {'quality': 95} if fmt == 'JPEG' else {}
+    Image.fromarray(img_np).save(output_path, format=fmt, **save_kwargs)
+    return {'cleaned': True}
+
+
+
     """将 PDF 每页导出为图片"""
     doc = fitz.open(pdf_path)
     image_paths = []
@@ -632,14 +694,23 @@ def index():
     return render_template('index.html')
 
 
+ALLOWED_PDF = {'.pdf'}
+ALLOWED_IMAGE = {'.png', '.jpg', '.jpeg', '.webp', '.bmp'}
+ALLOWED_ALL = ALLOWED_PDF | ALLOWED_IMAGE
+
+
 @app.route('/api/upload', methods=['POST'])
 def upload_pdf():
     if 'file' not in request.files:
         return jsonify({'error': '未选择文件'}), 400
 
     file = request.files['file']
-    if file.filename == '' or not file.filename.lower().endswith('.pdf'):
-        return jsonify({'error': '请上传 PDF 文件'}), 400
+    if file.filename == '':
+        return jsonify({'error': '文件名为空'}), 400
+
+    ext = os.path.splitext(file.filename.lower())[1]
+    if ext not in ALLOWED_ALL:
+        return jsonify({'error': '仅支持 PDF 和图片文件（PNG/JPG/WEBP）'}), 400
 
     filename = secure_filename(file.filename)
     base_name = os.path.splitext(filename)[0]
@@ -650,9 +721,11 @@ def upload_pdf():
     input_path = os.path.join(task_dir, filename)
     file.save(input_path)
 
+    file_type = 'pdf' if ext == '.pdf' else 'image'
     return jsonify({
         'task_id': task_id,
         'filename': filename,
+        'file_type': file_type,
         'message': '上传成功'
     })
 
@@ -676,28 +749,53 @@ def process_pdf():
     output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
     os.makedirs(output_dir, exist_ok=True)
 
-    output_pdf = os.path.join(output_dir, f'clean_{filename}')
+    ext = os.path.splitext(filename.lower())[1]
 
     try:
-        remover = WatermarkRemover(sensitivity=sensitivity)
-        stats = remover.remove_watermarks(input_path, output_pdf)
-
-        return jsonify({
-            'task_id': task_id,
-            'filename': filename,
-            'stats': stats,
-            'message': '处理完成'
-        })
+        if ext == '.pdf':
+            # PDF 处理
+            output_pdf = os.path.join(output_dir, f'clean_{filename}')
+            remover = WatermarkRemover(sensitivity=sensitivity)
+            stats = remover.remove_watermarks(input_path, output_pdf)
+            return jsonify({
+                'task_id': task_id,
+                'filename': filename,
+                'file_type': 'pdf',
+                'stats': stats,
+                'message': '处理完成'
+            })
+        else:
+            # 图片处理
+            output_image = os.path.join(output_dir, f'clean_{filename}')
+            result = remove_pixel_watermark_from_image(input_path, output_image)
+            return jsonify({
+                'task_id': task_id,
+                'filename': filename,
+                'file_type': 'image',
+                'stats': {
+                    'pages': 1,
+                    'text_removed': 0,
+                    'image_removed': 1 if result['cleaned'] else 0,
+                },
+                'message': '处理完成'
+            })
     except Exception as e:
         return jsonify({'error': f'处理失败: {str(e)}'}), 500
 
 
 @app.route('/api/preview/<task_id>/<int:page_num>')
 def preview_page(task_id, page_num):
-    """预览指定页面"""
+    """预览指定页面（PDF 或图片）"""
     output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
 
-    # 查找处理后的 PDF
+    # 优先查找处理后的图片文件
+    for ext in ('.png', '.jpg', '.jpeg', '.webp', '.bmp'):
+        for fname in os.listdir(output_dir):
+            if fname.startswith('clean_') and fname.lower().endswith(ext):
+                img_path = os.path.join(output_dir, fname)
+                return send_file(img_path, mimetype=f'image/{ext.lstrip(".")}')
+
+    # 否则找 PDF
     pdf_files = [f for f in os.listdir(output_dir) if f.endswith('.pdf')]
     if not pdf_files:
         return jsonify({'error': '未找到处理后的文件'}), 404
@@ -715,6 +813,21 @@ def preview_page(task_id, page_num):
     doc.close()
 
     return send_file(io.BytesIO(img_data), mimetype='image/png')
+
+
+@app.route('/api/export/image/<task_id>')
+def export_image_file(task_id):
+    """导出去水印后的图片文件"""
+    output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+    for ext in ('.png', '.jpg', '.jpeg', '.webp', '.bmp'):
+        for fname in os.listdir(output_dir):
+            if fname.startswith('clean_') and fname.lower().endswith(ext):
+                fpath = os.path.join(output_dir, fname)
+                mime = 'image/jpeg' if ext in ('.jpg', '.jpeg') else f'image/{ext.lstrip(".")}'
+                return send_file(fpath, as_attachment=True, download_name=fname, mimetype=mime)
+    return jsonify({'error': '未找到处理后的图片'}), 404
+
+
 
 
 @app.route('/api/page_count/<task_id>')

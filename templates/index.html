@@ -586,14 +586,14 @@
         <div class="upload-zone" id="uploadZone">
             <div class="nb-watermark-hint" data-i18n="nbHint">✓ 支持 NotebookLM PDF</div>
             <div class="upload-icon">📄</div>
-            <h3 data-i18n="uploadTitle">拖放 NotebookLM PDF 到这里</h3>
-            <p data-i18n="uploadSub">或点击选择文件（最大 100MB）</p>
+            <h3 data-i18n="uploadTitle">拖放 NotebookLM PDF 或图片到这里</h3>
+            <p data-i18n="uploadSub">支持 PDF / PNG / JPG / WEBP（最大 100MB）</p>
             <button class="upload-btn">
                 <span>📂</span>
                 <span data-i18n="uploadBtn">选择文件</span>
             </button>
         </div>
-        <input type="file" id="fileInput" accept=".pdf">
+        <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp">
 
         <!-- 文件信息 -->
         <div class="file-info" id="fileInfo">
@@ -660,7 +660,7 @@
                 </div>
             </div>
 
-            <div class="export-options">
+            <div class="export-options" id="exportOptions">
                 <label data-i18n="dpiLabel">图片 DPI：</label>
                 <select id="dpiSelect">
                     <option value="150" data-i18n="dpi150">150 DPI（快速）</option>
@@ -674,10 +674,16 @@
                 </select>
             </div>
 
-            <div class="export-row">
+            <!-- PDF 模式导出按钮 -->
+            <div class="export-row" id="exportRowPdf">
                 <button class="export-btn export-pdf" id="exportPdf" data-i18n="exportPdf">📥 导出 PDF</button>
                 <button class="export-btn export-images" id="exportImages" data-i18n="exportImages">🖼️ 导出图片（每页一张）</button>
                 <button class="export-btn export-long" id="exportLong" data-i18n="exportLong">📜 导出长图</button>
+            </div>
+
+            <!-- 图片模式导出按钮 -->
+            <div class="export-row" id="exportRowImage" style="display:none;">
+                <button class="export-btn export-pdf" id="exportImageFile" data-i18n="exportImageFile">📥 下载去水印图片</button>
             </div>
         </div>
 
@@ -699,8 +705,8 @@
             demoAfter:     '✓ 已清除',
             nbHint:        '✓ 支持 NotebookLM PDF',
             step1:         '上传 PDF', step2: '去除水印', step3: '预览 & 导出',
-            uploadTitle:   '拖放 NotebookLM PDF 到这里',
-            uploadSub:     '或点击选择文件（最大 100MB）',
+            uploadTitle:   '拖放 NotebookLM PDF 或图片到这里',
+            uploadSub:     '支持 PDF / PNG / JPG / WEBP（最大 100MB）',
             uploadBtn:     '选择文件',
             settingsTitle: '处理设置',
             sensitivityLabel: '检测灵敏度',
@@ -715,9 +721,10 @@
             dpiLabel: '图片 DPI：', fmtLabel: '图片格式：',
             dpi150: '150 DPI（快速）', dpi200: '200 DPI（推荐）', dpi300: '300 DPI（高清）',
             exportPdf: '📥 导出 PDF', exportImages: '🖼️ 导出图片（每页一张）', exportLong: '📜 导出长图',
+            exportImageFile: '📥 下载去水印图片',
             pageInfo:      (c, t) => `第 ${c} 页 / 共 ${t} 页`,
             uploadOk: '文件上传成功', uploadFail: '上传失败',
-            uploadPdfOnly: '请上传 PDF 文件', networkErr: '网络错误',
+            uploadPdfOnly: '仅支持 PDF 和图片文件（PNG/JPG/WEBP）', networkErr: '网络错误',
             processFail: '处理失败',
             processErr: (m) => `处理出错: ${m}`,
             processOk: (t, i) => `处理完成！去除了 ${t} 个文本水印和 ${i} 个图片水印`,
@@ -734,8 +741,8 @@
             demoAfter:     '✓ Removed',
             nbHint:        '✓ NotebookLM PDF supported',
             step1: 'Upload PDF', step2: 'Remove Watermark', step3: 'Preview & Export',
-            uploadTitle:   'Drop your NotebookLM PDF here',
-            uploadSub:     'or click to select (max 100MB)',
+            uploadTitle:   'Drop your NotebookLM PDF or image here',
+            uploadSub:     'Supports PDF / PNG / JPG / WEBP (max 100MB)',
             uploadBtn:     'Select File',
             settingsTitle: 'Settings',
             sensitivityLabel: 'Sensitivity',
@@ -750,9 +757,10 @@
             dpiLabel: 'Image DPI:', fmtLabel: 'Format:',
             dpi150: '150 DPI (Fast)', dpi200: '200 DPI (Recommended)', dpi300: '300 DPI (High Quality)',
             exportPdf: '📥 Export PDF', exportImages: '🖼️ Export Images (per page)', exportLong: '📜 Export Long Image',
+            exportImageFile: '📥 Download Cleaned Image',
             pageInfo:      (c, t) => `Page ${c} / ${t}`,
             uploadOk: 'File uploaded', uploadFail: 'Upload failed',
-            uploadPdfOnly: 'Please upload a PDF', networkErr: 'Network error',
+            uploadPdfOnly: 'Only PDF and image files (PNG/JPG/WEBP) supported', networkErr: 'Network error',
             processFail: 'Processing failed',
             processErr: (m) => `Error: ${m}`,
             processOk: (t, i) => `Done! Removed ${t} text and ${i} image watermarks`,
@@ -928,7 +936,7 @@
     }
 
     // ==================== State ====================
-    const state = { taskId: null, filename: null, currentPage: 1, totalPages: 0, sensitivity: 'medium' };
+    const state = { taskId: null, filename: null, fileType: 'pdf', currentPage: 1, totalPages: 0, sensitivity: 'medium' };
 
     const $ = id => document.getElementById(id);
     const uploadZone   = $('uploadZone');
@@ -965,7 +973,9 @@
     uploadZone.addEventListener('drop', e => {
         e.preventDefault(); uploadZone.classList.remove('dragover');
         const file = e.dataTransfer.files[0];
-        if (file && file.name.toLowerCase().endsWith('.pdf')) handleFile(file);
+        const ext = file ? file.name.split('.').pop().toLowerCase() : '';
+        const allowed = ['pdf','png','jpg','jpeg','webp','bmp'];
+        if (file && allowed.includes(ext)) handleFile(file);
         else toast(T('uploadPdfOnly'), 'error');
     });
     fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
@@ -979,6 +989,7 @@
             if (res.ok) {
                 state.taskId = data.task_id;
                 state.filename = data.filename;
+                state.fileType = data.file_type || 'pdf';
                 $('fileName').textContent = file.name;
                 $('fileSize').textContent = formatSize(file.size);
                 uploadZone.style.display = 'none';
@@ -994,7 +1005,7 @@
     }
 
     $('fileRemove').addEventListener('click', () => {
-        state.taskId = null; state.filename = null;
+        state.taskId = null; state.filename = null; state.fileType = 'pdf';
         fileInfo.classList.remove('show');
         settingsPanel.classList.remove('show');
         resultsPanel.classList.remove('show');
@@ -1053,6 +1064,13 @@
         state.currentPage = 1;
         resultsPanel.classList.add('show');
         setStep(3);
+
+        // 根据文件类型切换导出按钮组
+        const isImage = state.fileType === 'image';
+        $('exportRowPdf').style.display   = isImage ? 'none' : '';
+        $('exportRowImage').style.display = isImage ? '' : 'none';
+        $('exportOptions').style.display  = isImage ? 'none' : '';
+
         loadPreview();
         toast(T('processOk', s.text_removed, s.image_removed));
     }
@@ -1080,6 +1098,9 @@
         const dpi = $('dpiSelect').value, fmt = $('formatSelect').value;
         toast(T('genLong'));
         window.location.href = `/api/export/longimage/${state.taskId}?dpi=${dpi}&format=${fmt}`;
+    });
+    $('exportImageFile').addEventListener('click', () => {
+        window.location.href = `/api/export/image/${state.taskId}`;
     });
     </script>
 </body>
