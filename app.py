@@ -696,6 +696,12 @@ def export_pdf_to_images(pdf_path, output_dir, dpi=200, fmt='png'):
 
 def _blob_upload(file_path, blob_name):
     """上传文件到 Vercel Blob，返回 blob url"""
+    token = os.environ.get('BLOB_READ_WRITE_TOKEN')
+    if not token:
+        raise RuntimeError(
+            'BLOB_READ_WRITE_TOKEN 环境变量未设置。'
+            '请在 Vercel Dashboard → Settings → Environment Variables 中添加该变量。'
+        )
     import vercel_blob
     with open(file_path, 'rb') as f:
         resp = vercel_blob.put(blob_name, f.read(), multipart=True)
