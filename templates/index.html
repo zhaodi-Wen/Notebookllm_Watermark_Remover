@@ -1105,6 +1105,7 @@
             $('progressFill').style.width = '100%';
             if (res.ok) {
                 if (data.result_url) state.resultUrl = data.result_url;
+                if (data.preview_url) state.previewUrl = data.preview_url;
                 setTimeout(() => { progressBar.classList.remove('show'); showResults(data); }, 500);
             } else {
                 progressBar.classList.remove('show');
@@ -1145,9 +1146,12 @@
     }
 
     function loadPreview() {
-        if (state.resultUrl) {
-            // Blob 模式：直接显示 blob 图片 URL
-            $('previewImg').src = state.resultUrl + `?t=${Date.now()}`;
+        if (state.resultUrl && state.fileType === 'pdf') {
+            // Vercel Blob 模式：PDF 用后端渲染接口按页预览
+            $('previewImg').src = `/api/blob_preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
+        } else if (state.resultUrl) {
+            // Blob 模式：图片直接展示
+            $('previewImg').src = state.previewUrl || state.resultUrl;
         } else {
             $('previewImg').src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
         }

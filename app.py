@@ -837,9 +837,28 @@ def process_pdf():
 
             # 上传结果到 Blob
             result_url = ''
+            preview_url = ''
             if _IS_VERCEL:
                 blob_name = f'outputs/{task_id}/{output_name}'
                 result_url = _blob_upload(output_path, blob_name)
+
+                # 额外渲染第1页为预览图上传 Blob
+                if file_type == 'pdf':
+                    try:
+                        doc_prev = fitz.open(output_path)
+                        pix = doc_prev[0].get_pixmap(matrix=fitz.Matrix(1.5, 1.5))
+                        preview_bytes = pix.tobytes("png")
+                        doc_prev.close()
+                        import vercel_blob
+                        prev_resp = vercel_blob.put(
+                            f'outputs/{task_id}/preview_p1.png',
+                            preview_bytes, multipart=False
+                        )
+                        preview_url = prev_resp.get('url', '') if isinstance(prev_resp, dict) else getattr(prev_resp, 'url', '')
+                    except Exception:
+                        pass
+                else:
+                    preview_url = result_url
 
             return jsonify({
                 'task_id': task_id,
@@ -847,6 +866,7 @@ def process_pdf():
                 'file_type': file_type,
                 'stats': stats,
                 'result_url': result_url,
+                'preview_url': preview_url,
                 'message': '处理完成'
             })
         except Exception as e:
@@ -891,6 +911,32 @@ def process_pdf():
             })
     except Exception as e:
         return jsonify({'error': f'处理失败: {str(e)}'}), 500
+
+
+@app.route('/api/blob_preview/<task_id>/<int:page_num>')
+def blob_preview(task_id, page_num):
+    """Vercel 模式：从 /tmp 中的已处理 PDF 渲染指定页，返回 PNG"""
+    import glob
+    tmp_dir = f'/tmp/{task_id}'
+    # 找 clean_*.pdf
+    pdf_files = glob.glob(os.path.join(tmp_dir, 'clean_*.pdf'))
+    if not pdf_files:
+        return jsonify({'error': '文件不存在，请重新处理'}), 404
+
+    pdf_path = pdf_files[0]
+    try:
+        doc = fitz.open(pdf_path)
+        total = len(doc)
+        if page_num < 1 or page_num > total:
+            doc.close()
+            return jsonify({'error': '页码超出范围'}), 400
+        pix = doc[page_num - 1].get_pixmap(matrix=fitz.Matrix(1.5, 1.5))
+        img_data = pix.tobytes("png")
+        doc.close()
+        return send_file(io.BytesIO(img_data), mimetype='image/png',
+                         headers={'X-Total-Pages': str(total)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/preview/<task_id>/<int:page_num>')
