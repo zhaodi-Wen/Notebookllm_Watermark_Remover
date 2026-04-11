@@ -14,7 +14,7 @@ _BASE_DIR = '/tmp' if _IS_VERCEL else os.path.dirname(os.path.abspath(__file__))
 
 app.config['UPLOAD_FOLDER'] = os.path.join(_BASE_DIR, 'uploads')
 app.config['OUTPUT_FOLDER'] = os.path.join(_BASE_DIR, 'outputs')
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB（Vercel 限制）
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
