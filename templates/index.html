@@ -3,465 +3,558 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF 水印清除工具</title>
+    <title>NotebookLM Watermark Remover</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg: #0f0f13;
-            --surface: #1a1a24;
-            --surface2: #23233a;
-            --border: #2d2d48;
-            --primary: #6c5ce7;
-            --primary-hover: #7f71ed;
-            --accent: #00cec9;
-            --text: #e8e8f0;
-            --text-dim: #8888a8;
-            --danger: #ff6b6b;
-            --success: #00b894;
-            --radius: 12px;
+            --bg: #0a0a10;
+            --surface: #13131e;
+            --surface2: #1c1c2e;
+            --surface3: #22223a;
+            --border: #2a2a45;
+            --border-light: #35355a;
+            --primary: #4f46e5;
+            --primary-hover: #6366f1;
+            --primary-glow: rgba(79, 70, 229, 0.25);
+            --accent: #06b6d4;
+            --accent-glow: rgba(6, 182, 212, 0.2);
+            --nb-blue: #1a73e8;
+            --nb-glow: rgba(26, 115, 232, 0.3);
+            --text: #e2e2f0;
+            --text-dim: #7070a0;
+            --text-muted: #45456a;
+            --danger: #ef4444;
+            --success: #10b981;
+            --radius: 14px;
+            --radius-sm: 8px;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
         }
 
-        .app-header {
-            background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+        /* ===== HERO HEADER ===== */
+        .hero {
+            background: linear-gradient(160deg, #0d0d1f 0%, #0a0a10 60%);
             border-bottom: 1px solid var(--border);
-            padding: 20px 0;
+            padding: 48px 0 40px;
+            position: relative;
+            overflow: hidden;
         }
 
-        .header-inner {
-            max-width: 1100px;
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -80px; left: 50%;
+            transform: translateX(-50%);
+            width: 600px; height: 300px;
+            background: radial-gradient(ellipse, rgba(79,70,229,0.12) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-inner {
+            max-width: 860px;
             margin: 0 auto;
             padding: 0 24px;
+            text-align: center;
+            position: relative;
+        }
+
+        /* NotebookLM badge */
+        .nb-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(26,115,232,0.12);
+            border: 1px solid rgba(26,115,232,0.35);
+            border-radius: 100px;
+            padding: 6px 14px;
+            font-size: 13px;
+            color: #60a5fa;
+            margin-bottom: 24px;
+            letter-spacing: 0.01em;
+        }
+
+        .nb-badge-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #60a5fa;
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .hero h1 {
+            font-size: 42px;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            margin-bottom: 16px;
+        }
+
+        .hero h1 .brand {
+            background: linear-gradient(135deg, #60a5fa 0%, #818cf8 50%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero h1 .action {
+            color: var(--text);
+        }
+
+        .hero-sub {
+            font-size: 17px;
+            color: var(--text-dim);
+            max-width: 520px;
+            margin: 0 auto 32px;
+            line-height: 1.6;
+        }
+
+        .hero-chips {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chip {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 6px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 6px 14px;
+            font-size: 12.5px;
+            color: var(--text-dim);
         }
 
-        .logo {
-            width: 44px; height: 44px;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 22px; font-weight: 700;
+        .chip-icon { font-size: 14px; }
+
+        /* Lang + nav row */
+        .topbar {
+            position: absolute;
+            top: 20px; right: 24px;
         }
 
-        .header-text h1 {
-            font-size: 20px; font-weight: 700;
-            background: linear-gradient(135deg, #fff 0%, #ccc 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        .lang-select {
+            padding: 6px 10px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
         }
+        .lang-select:hover { border-color: var(--primary); }
 
-        .header-text p { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
-
+        /* ===== MAIN CONTAINER ===== */
         .container {
-            max-width: 1100px;
+            max-width: 860px;
             margin: 0 auto;
-            padding: 32px 24px;
+            padding: 40px 24px 80px;
         }
 
-        /* 步骤指示器 */
+        /* ===== STEPS ===== */
         .steps {
-            display: flex; gap: 8px; margin-bottom: 32px;
+            display: flex;
+            gap: 6px;
+            margin-bottom: 32px;
         }
 
         .step {
-            flex: 1; padding: 14px 16px;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: var(--radius);
-            display: flex; align-items: center; gap: 12px;
-            opacity: 0.45; transition: all 0.3s;
+            border-radius: var(--radius-sm);
+            opacity: 0.4;
+            transition: all 0.3s;
         }
 
-        .step.active { opacity: 1; border-color: var(--primary); }
-        .step.done { opacity: 0.7; border-color: var(--success); }
+        .step.active { opacity: 1; border-color: var(--primary); background: var(--surface2); }
+        .step.done   { opacity: 0.65; border-color: var(--success); }
 
         .step-num {
-            width: 32px; height: 32px;
+            width: 28px; height: 28px;
             border-radius: 50%;
-            background: var(--surface2);
+            background: var(--surface3);
             display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 14px;
+            font-size: 13px; font-weight: 700; flex-shrink: 0;
         }
-
         .step.active .step-num { background: var(--primary); }
-        .step.done .step-num { background: var(--success); }
+        .step.done   .step-num { background: var(--success); }
+        .step-label { font-size: 13px; font-weight: 500; }
 
-        .step-label { font-size: 14px; font-weight: 500; }
-
-        /* 上传区 */
+        /* ===== UPLOAD ZONE ===== */
         .upload-zone {
-            border: 2px dashed var(--border);
-            border-radius: 16px;
-            padding: 60px 40px;
+            border: 2px dashed var(--border-light);
+            border-radius: 20px;
+            padding: 64px 40px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s;
             background: var(--surface);
+            transition: all 0.25s;
+            position: relative;
         }
 
         .upload-zone:hover, .upload-zone.dragover {
             border-color: var(--primary);
-            background: rgba(108, 92, 231, 0.05);
+            background: rgba(79,70,229,0.04);
         }
 
-        .upload-icon {
-            font-size: 56px; margin-bottom: 16px; opacity: 0.6;
+        .upload-zone .nb-watermark-hint {
+            position: absolute;
+            top: 16px; right: 20px;
+            background: rgba(26,115,232,0.12);
+            border: 1px solid rgba(26,115,232,0.3);
+            border-radius: 100px;
+            padding: 4px 12px;
+            font-size: 11px;
+            color: #60a5fa;
         }
 
-        .upload-zone h3 { font-size: 18px; margin-bottom: 8px; }
-        .upload-zone p { color: var(--text-dim); font-size: 14px; }
+        .upload-icon { font-size: 52px; margin-bottom: 14px; opacity: 0.55; }
+        .upload-zone h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+        .upload-zone p  { color: var(--text-dim); font-size: 14px; }
 
         .upload-btn {
-            display: inline-block; margin-top: 20px;
-            padding: 10px 28px; background: var(--primary);
-            color: white; border: none; border-radius: 8px;
-            font-size: 14px; font-weight: 600; cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 22px;
+            padding: 11px 28px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 14px; font-weight: 600;
+            cursor: pointer;
             transition: background 0.2s;
         }
-
         .upload-btn:hover { background: var(--primary-hover); }
 
-        /* 文件信息 */
+        /* ===== FILE INFO ===== */
         .file-info {
             display: none;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 20px 24px;
-            margin-bottom: 24px;
-            align-items: center; gap: 16px;
+            padding: 18px 22px;
+            margin-bottom: 20px;
+            align-items: center;
+            gap: 14px;
         }
-
         .file-info.show { display: flex; }
-
-        .file-icon { font-size: 36px; }
-
+        .file-icon { font-size: 34px; }
         .file-meta { flex: 1; }
         .file-meta .name { font-weight: 600; font-size: 15px; }
         .file-meta .size { color: var(--text-dim); font-size: 13px; margin-top: 2px; }
-
         .file-remove {
-            background: none; border: none; color: var(--danger);
-            cursor: pointer; font-size: 20px; padding: 8px;
+            background: none; border: none;
+            color: var(--danger); cursor: pointer;
+            font-size: 18px; padding: 8px; border-radius: 6px;
+            transition: background 0.2s;
         }
+        .file-remove:hover { background: rgba(239,68,68,0.1); }
 
-        /* 设置面板 */
+        /* ===== SETTINGS ===== */
         .settings-panel {
             display: none;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 28px;
-            margin-bottom: 24px;
+            padding: 26px 28px;
+            margin-bottom: 20px;
         }
-
         .settings-panel.show { display: block; }
-
-        .settings-panel h3 { font-size: 16px; margin-bottom: 20px; }
+        .settings-panel h3 { font-size: 15px; font-weight: 700; margin-bottom: 18px; }
 
         .setting-row {
-            display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
+            display: flex; align-items: center;
+            gap: 16px; margin-bottom: 14px;
         }
-
         .setting-row label {
-            width: 100px; font-size: 14px; color: var(--text-dim); flex-shrink: 0;
+            width: 90px; font-size: 13px; color: var(--text-dim); flex-shrink: 0;
         }
 
         .sensitivity-options { display: flex; gap: 8px; }
-
         .sensitivity-options button {
-            padding: 8px 20px;
+            padding: 7px 18px;
             background: var(--surface2);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 7px;
             color: var(--text);
             cursor: pointer;
             font-size: 13px;
             transition: all 0.2s;
         }
-
         .sensitivity-options button.active {
             background: var(--primary);
             border-color: var(--primary);
         }
 
+        .sens-hint {
+            font-size: 12px; color: var(--text-muted);
+            margin: 4px 0 20px;
+            line-height: 1.6;
+        }
+
         .process-btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, var(--primary), #8b5cf6);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+            color: white; border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 700; cursor: pointer;
             transition: opacity 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
         }
+        .process-btn:hover { opacity: 0.92; }
+        .process-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .process-btn:hover { opacity: 0.9; }
-        .process-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        /* 进度条 */
+        /* ===== PROGRESS ===== */
         .progress-bar {
             display: none;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 28px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             text-align: center;
         }
-
         .progress-bar.show { display: block; }
 
         .progress-track {
-            height: 6px;
-            background: var(--surface2);
-            border-radius: 3px;
-            overflow: hidden;
-            margin: 16px 0;
+            height: 5px; background: var(--surface3);
+            border-radius: 3px; overflow: hidden; margin: 14px 0;
         }
-
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, var(--primary), var(--accent));
-            border-radius: 3px;
-            width: 0%;
+            border-radius: 3px; width: 0%;
             transition: width 0.5s;
         }
-
         .progress-text { font-size: 14px; color: var(--text-dim); }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         .processing .progress-fill { animation: pulse 1.5s infinite; width: 70% !important; }
 
-        /* 结果区 */
+        /* ===== RESULTS ===== */
         .results-panel {
             display: none;
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 28px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
-
         .results-panel.show { display: block; }
 
         .results-header {
             display: flex; justify-content: space-between;
-            align-items: center; margin-bottom: 24px;
+            align-items: center; margin-bottom: 22px;
         }
+        .results-header h3 { font-size: 15px; font-weight: 700; }
 
-        .results-header h3 { font-size: 16px; }
-
-        .stats {
-            display: flex; gap: 24px;
-        }
-
-        .stat {
-            text-align: center;
-        }
-
+        .stats { display: flex; gap: 24px; }
+        .stat { text-align: center; }
         .stat-value {
-            font-size: 28px; font-weight: 700;
+            font-size: 30px; font-weight: 800;
             background: linear-gradient(135deg, var(--accent), var(--primary));
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
+        .stat-label { font-size: 11px; color: var(--text-dim); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
 
-        .stat-label { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
-
-        /* 预览区 */
+        /* ===== PREVIEW ===== */
         .preview-area {
             background: var(--bg);
-            border-radius: 12px;
+            border-radius: 10px;
             padding: 20px;
-            margin-bottom: 24px;
+            margin-bottom: 22px;
             text-align: center;
-            min-height: 300px;
+            min-height: 280px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-
         .preview-area img {
-            max-width: 100%;
-            max-height: 600px;
+            max-width: 100%; max-height: 580px;
             border-radius: 4px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5);
         }
-
         .page-nav {
-            display: flex; align-items: center; gap: 16px;
-            margin-top: 16px;
+            display: flex; align-items: center;
+            gap: 14px; margin-top: 16px;
         }
-
         .page-nav button {
-            padding: 8px 16px;
+            padding: 7px 16px;
             background: var(--surface2);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
+            border-radius: var(--radius-sm);
+            color: var(--text); cursor: pointer;
+            font-size: 13px; transition: all 0.2s;
         }
-
         .page-nav button:hover { border-color: var(--primary); }
         .page-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+        .page-info { font-size: 13px; color: var(--text-dim); }
 
-        .page-info { font-size: 14px; color: var(--text-dim); }
-
-        /* 导出按钮 */
-        .export-row {
-            display: flex; gap: 12px;
-        }
-
-        .export-btn {
-            flex: 1; padding: 14px;
-            border-radius: 10px;
-            font-size: 14px; font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-
-        .export-pdf {
-            background: var(--primary);
-            color: white;
-            border: none;
-        }
-
-        .export-pdf:hover { background: var(--primary-hover); }
-
-        .export-images {
-            background: transparent;
-            color: var(--accent);
-            border: 1px solid var(--accent);
-        }
-
-        .export-images:hover { background: rgba(0, 206, 201, 0.1); }
-
-        .export-long {
-            background: transparent;
-            color: #a29bfe;
-            border: 1px solid #a29bfe;
-        }
-
-        .export-long:hover { background: rgba(162, 155, 254, 0.1); }
-
-        /* DPI 选择 */
+        /* ===== EXPORT ===== */
         .export-options {
-            display: flex; align-items: center; gap: 12px;
-            margin-bottom: 16px;
+            display: flex; align-items: center;
+            gap: 12px; margin-bottom: 14px;
+            flex-wrap: wrap;
         }
-
         .export-options label { font-size: 13px; color: var(--text-dim); }
-
         .export-options select {
-            padding: 6px 12px;
+            padding: 6px 10px;
             background: var(--surface2);
             border: 1px solid var(--border);
             border-radius: 6px;
-            color: var(--text);
-            font-size: 13px;
+            color: var(--text); font-size: 13px;
         }
 
-        /* 隐藏的 input */
+        .export-row { display: flex; gap: 10px; }
+        .export-btn {
+            flex: 1; padding: 13px;
+            border-radius: 10px;
+            font-size: 13px; font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 7px;
+        }
+        .export-pdf {
+            background: var(--primary); color: white; border: none;
+        }
+        .export-pdf:hover { background: var(--primary-hover); }
+        .export-images {
+            background: transparent; color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+        .export-images:hover { background: var(--accent-glow); }
+        .export-long {
+            background: transparent; color: #a78bfa;
+            border: 1px solid #a78bfa;
+        }
+        .export-long:hover { background: rgba(167,139,250,0.1); }
+
+        /* ===== MISC ===== */
         #fileInput { display: none; }
 
         .spinner {
-            display: inline-block;
-            width: 18px; height: 18px;
+            width: 16px; height: 16px;
             border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: white;
-            border-radius: 50%;
+            border-top-color: white; border-radius: 50%;
             animation: spin 0.6s linear infinite;
+            display: inline-block;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Toast */
         .toast {
             position: fixed; bottom: 32px; left: 50%;
-            transform: translateX(-50%) translateY(100px);
-            padding: 12px 24px;
-            background: var(--surface2);
+            transform: translateX(-50%) translateY(80px);
+            padding: 11px 22px;
+            background: var(--surface3);
             border: 1px solid var(--border);
             border-radius: 10px;
-            font-size: 14px;
-            opacity: 0;
-            transition: all 0.4s;
-            z-index: 1000;
+            font-size: 13.5px;
+            opacity: 0; transition: all 0.35s;
+            z-index: 1000; white-space: nowrap;
         }
-
-        .toast.show {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
-        }
-
-        .toast.error { border-color: var(--danger); color: var(--danger); }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.error   { border-color: var(--danger); color: var(--danger); }
         .toast.success { border-color: var(--success); color: var(--success); }
 
-        /* 语言切换 */
-        .lang-switch {
-            margin-left: auto;
-        }
-        .lang-select {
-            padding: 7px 12px;
-            background: var(--surface2);
+        /* ===== WATERMARK DEMO STRIP ===== */
+        .demo-strip {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 28px;
+            background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 13px;
-            cursor: pointer;
-            outline: none;
-            transition: border-color 0.2s;
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            align-items: center;
         }
-        .lang-select:hover, .lang-select:focus {
-            border-color: var(--primary);
+        .demo-strip-icon { font-size: 28px; flex-shrink: 0; }
+        .demo-strip-text { flex: 1; }
+        .demo-strip-text strong { font-size: 14px; display: block; margin-bottom: 4px; }
+        .demo-strip-text span { font-size: 12.5px; color: var(--text-dim); }
+        .wm-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 100px;
+            padding: 3px 10px;
+            font-size: 12px;
+            color: #fca5a5;
+            flex-shrink: 0;
         }
+        .wm-tag-after {
+            background: rgba(16,185,129,0.1);
+            border-color: rgba(16,185,129,0.3);
+            color: #6ee7b7;
+        }
+        .arrow-icon { color: var(--text-muted); font-size: 18px; flex-shrink: 0; }
     </style>
 </head>
 <body>
-    <header class="app-header">
-        <div class="header-inner">
-            <div class="logo">W</div>
-            <div class="header-text">
-                <h1>PDF Watermark Remover</h1>
-                <p data-i18n="subtitle">智能去除 PDF 水印 · 支持导出 PDF 和图片</p>
+
+    <!-- ===== HERO ===== -->
+    <header class="hero">
+        <div class="topbar">
+            <select id="langSelect" class="lang-select">
+                <option value="zh">🇨🇳 中文</option>
+                <option value="en">🇺🇸 English</option>
+                <option value="ja">🇯🇵 日本語</option>
+                <option value="ko">🇰🇷 한국어</option>
+                <option value="es">🇪🇸 Español</option>
+                <option value="fr">🇫🇷 Français</option>
+                <option value="de">🇩🇪 Deutsch</option>
+                <option value="pt">🇧🇷 Português</option>
+            </select>
+        </div>
+
+        <div class="hero-inner">
+            <div class="nb-badge">
+                <span class="nb-badge-dot"></span>
+                <span data-i18n="nbBadge">专为 NotebookLM 导出 PDF 设计</span>
             </div>
-            <div class="lang-switch">
-                <select id="langSelect" class="lang-select">
-                    <option value="zh">🇨🇳 中文</option>
-                    <option value="en">🇺🇸 English</option>
-                    <option value="ja">🇯🇵 日本語</option>
-                    <option value="ko">🇰🇷 한국어</option>
-                    <option value="es">🇪🇸 Español</option>
-                    <option value="fr">🇫🇷 Français</option>
-                    <option value="de">🇩🇪 Deutsch</option>
-                    <option value="pt">🇧🇷 Português</option>
-                </select>
+
+            <h1>
+                <span class="brand">NotebookLM</span>
+                <br>
+                <span class="action" data-i18n="heroTitle">水印一键清除</span>
+            </h1>
+
+            <p class="hero-sub" data-i18n="heroSub">
+                自动识别并去除 NotebookLM 导出 PDF 右下角的品牌水印，支持批量处理全部页面，导出干净的 PDF 或高清图片。
+            </p>
+
+            <div class="hero-chips">
+                <div class="chip"><span class="chip-icon">⚡</span><span data-i18n="chip1">像素级精准去除</span></div>
+                <div class="chip"><span class="chip-icon">🖼️</span><span data-i18n="chip2">导出 PDF / 图片 / 长图</span></div>
+                <div class="chip"><span class="chip-icon">🔒</span><span data-i18n="chip3">本地处理，不上传服务器</span></div>
+                <div class="chip"><span class="chip-icon">🌐</span><span data-i18n="chip4">支持 8 种语言</span></div>
             </div>
         </div>
     </header>
 
+    <!-- ===== MAIN ===== -->
     <div class="container">
-        <!-- 步骤指示器 -->
+
+        <!-- 步骤 -->
         <div class="steps">
             <div class="step active" id="step1">
                 <div class="step-num">1</div>
@@ -477,12 +570,28 @@
             </div>
         </div>
 
+        <!-- 水印说明条 -->
+        <div class="demo-strip" id="demoStrip">
+            <div class="demo-strip-icon">🎙️</div>
+            <div class="demo-strip-text">
+                <strong data-i18n="demoTitle">NotebookLM 导出 PDF 的水印长这样</strong>
+                <span data-i18n="demoSub">本工具会自动检测每页右下角的品牌徽标，完整清除后无任何痕迹</span>
+            </div>
+            <div class="wm-tag">🎙 NotebookLM</div>
+            <div class="arrow-icon">→</div>
+            <div class="wm-tag wm-tag-after" data-i18n="demoAfter">✓ 已清除</div>
+        </div>
+
         <!-- 上传区 -->
         <div class="upload-zone" id="uploadZone">
+            <div class="nb-watermark-hint" data-i18n="nbHint">✓ 支持 NotebookLM PDF</div>
             <div class="upload-icon">📄</div>
-            <h3 data-i18n="uploadTitle">拖放 PDF 文件到这里</h3>
+            <h3 data-i18n="uploadTitle">拖放 NotebookLM PDF 到这里</h3>
             <p data-i18n="uploadSub">或点击选择文件（最大 100MB）</p>
-            <button class="upload-btn" data-i18n="uploadBtn">选择文件</button>
+            <button class="upload-btn">
+                <span>📂</span>
+                <span data-i18n="uploadBtn">选择文件</span>
+            </button>
         </div>
         <input type="file" id="fileInput" accept=".pdf">
 
@@ -493,10 +602,10 @@
                 <div class="name" id="fileName"></div>
                 <div class="size" id="fileSize"></div>
             </div>
-            <button class="file-remove" id="fileRemove" title="移除文件">✕</button>
+            <button class="file-remove" id="fileRemove">✕</button>
         </div>
 
-        <!-- 设置面板 -->
+        <!-- 设置 -->
         <div class="settings-panel" id="settingsPanel">
             <h3 data-i18n="settingsTitle">处理设置</h3>
             <div class="setting-row">
@@ -507,13 +616,14 @@
                     <button data-value="high" data-i18n="sensHigh">高</button>
                 </div>
             </div>
-            <div style="margin-top: 8px; margin-bottom: 20px;">
-                <small style="color: var(--text-dim);" data-i18n="sensitivityHint">低灵敏度：仅去除明显水印 | 中灵敏度：推荐 | 高灵敏度：激进去除，可能误删部分内容</small>
-            </div>
-            <button class="process-btn" id="processBtn" data-i18n="processBtn">开始去除水印</button>
+            <p class="sens-hint" data-i18n="sensitivityHint">低灵敏度：仅去除明显水印 | 中灵敏度：推荐 | 高灵敏度：激进去除，可能误删部分内容</p>
+            <button class="process-btn" id="processBtn">
+                <span>✨</span>
+                <span data-i18n="processBtn">开始去除水印</span>
+            </button>
         </div>
 
-        <!-- 进度条 -->
+        <!-- 进度 -->
         <div class="progress-bar" id="progressBar">
             <div class="progress-text" data-i18n="processing">正在处理中，请稍候...</div>
             <div class="progress-track">
@@ -521,7 +631,7 @@
             </div>
         </div>
 
-        <!-- 结果区 -->
+        <!-- 结果 -->
         <div class="results-panel" id="resultsPanel">
             <div class="results-header">
                 <h3 data-i18n="resultsTitle">处理结果</h3>
@@ -542,7 +652,7 @@
             </div>
 
             <div class="preview-area" id="previewArea">
-                <img id="previewImg" alt="页面预览" />
+                <img id="previewImg" alt="preview" />
                 <div class="page-nav">
                     <button id="prevPage" data-i18n="prevPage">← 上一页</button>
                     <span class="page-info" id="pageInfo"></span>
@@ -557,7 +667,7 @@
                     <option value="200" selected data-i18n="dpi200">200 DPI（推荐）</option>
                     <option value="300" data-i18n="dpi300">300 DPI（高清）</option>
                 </select>
-                <label style="margin-left: 16px;" data-i18n="fmtLabel">图片格式：</label>
+                <label style="margin-left:12px;" data-i18n="fmtLabel">图片格式：</label>
                 <select id="formatSelect">
                     <option value="png">PNG</option>
                     <option value="jpg">JPG</option>
@@ -565,612 +675,412 @@
             </div>
 
             <div class="export-row">
-                <button class="export-btn export-pdf" id="exportPdf" data-i18n="exportPdf">
-                    📥 导出 PDF
-                </button>
-                <button class="export-btn export-images" id="exportImages" data-i18n="exportImages">
-                    🖼️ 导出图片（每页一张）
-                </button>
-                <button class="export-btn export-long" id="exportLong" data-i18n="exportLong">
-                    📜 导出长图
-                </button>
+                <button class="export-btn export-pdf" id="exportPdf" data-i18n="exportPdf">📥 导出 PDF</button>
+                <button class="export-btn export-images" id="exportImages" data-i18n="exportImages">🖼️ 导出图片（每页一张）</button>
+                <button class="export-btn export-long" id="exportLong" data-i18n="exportLong">📜 导出长图</button>
             </div>
         </div>
+
     </div>
 
-    <!-- Toast -->
     <div class="toast" id="toast"></div>
 
     <script>
-        // ==================== i18n ====================
-        const i18n = {
-            zh: {
-                subtitle:      '智能去除 PDF 水印 · 支持导出 PDF 和图片',
-                step1:         '上传 PDF',
-                step2:         '去除水印',
-                step3:         '预览 & 导出',
-                uploadTitle:   '拖放 PDF 文件到这里',
-                uploadSub:     '或点击选择文件（最大 100MB）',
-                uploadBtn:     '选择文件',
-                settingsTitle: '处理设置',
-                sensitivityLabel: '检测灵敏度',
-                sensLow:       '低',
-                sensMedium:    '中',
-                sensHigh:      '高',
-                sensitivityHint: '低灵敏度：仅去除明显水印 | 中灵敏度：推荐 | 高灵敏度：激进去除，可能误删部分内容',
-                processBtn:    '开始去除水印',
-                processing:    '正在处理中，请稍候...',
-                processingBtn: '处理中...',
-                resultsTitle:  '处理结果',
-                statPages:     '总页数',
-                statText:      '文本水印',
-                statImage:     '图片水印',
-                prevPage:      '← 上一页',
-                nextPage:      '下一页 →',
-                dpiLabel:      '图片 DPI：',
-                fmtLabel:      '图片格式：',
-                dpi150:        '150 DPI（快速）',
-                dpi200:        '200 DPI（推荐）',
-                dpi300:        '300 DPI（高清）',
-                exportPdf:     '📥 导出 PDF',
-                exportImages:  '🖼️ 导出图片（每页一张）',
-                exportLong:    '📜 导出长图',
-                pageInfo:      (cur, total) => `第 ${cur} 页 / 共 ${total} 页`,
-                uploadOk:      '文件上传成功',
-                uploadFail:    '上传失败',
-                uploadPdfOnly: '请上传 PDF 文件',
-                networkErr:    '网络错误',
-                processFail:   '处理失败',
-                processErr:    (msg) => `处理出错: ${msg}`,
-                processOk:     (t, i) => `处理完成！去除了 ${t} 个文本水印和 ${i} 个图片水印`,
-                genLong:       '正在生成长图，请稍候...',
-            },
-            en: {
-                subtitle:      'Smart PDF Watermark Removal · Export PDF & Images',
-                step1:         'Upload PDF',
-                step2:         'Remove Watermark',
-                step3:         'Preview & Export',
-                uploadTitle:   'Drop PDF file here',
-                uploadSub:     'or click to select (max 100MB)',
-                uploadBtn:     'Select File',
-                settingsTitle: 'Settings',
-                sensitivityLabel: 'Sensitivity',
-                sensLow:       'Low',
-                sensMedium:    'Medium',
-                sensHigh:      'High',
-                sensitivityHint: 'Low: obvious watermarks only | Medium: recommended | High: aggressive, may affect content',
-                processBtn:    'Remove Watermark',
-                processing:    'Processing, please wait...',
-                processingBtn: 'Processing...',
-                resultsTitle:  'Results',
-                statPages:     'Pages',
-                statText:      'Text WM',
-                statImage:     'Image WM',
-                prevPage:      '← Prev',
-                nextPage:      'Next →',
-                dpiLabel:      'Image DPI:',
-                fmtLabel:      'Format:',
-                dpi150:        '150 DPI (Fast)',
-                dpi200:        '200 DPI (Recommended)',
-                dpi300:        '300 DPI (High Quality)',
-                exportPdf:     '📥 Export PDF',
-                exportImages:  '🖼️ Export Images (per page)',
-                exportLong:    '📜 Export Long Image',
-                pageInfo:      (cur, total) => `Page ${cur} / ${total}`,
-                uploadOk:      'File uploaded successfully',
-                uploadFail:    'Upload failed',
-                uploadPdfOnly: 'Please upload a PDF file',
-                networkErr:    'Network error',
-                processFail:   'Processing failed',
-                processErr:    (msg) => `Error: ${msg}`,
-                processOk:     (t, i) => `Done! Removed ${t} text and ${i} image watermarks`,
-                genLong:       'Generating long image, please wait...',
-            },
-            ja: {
-                subtitle:      'PDF 透かし自動除去 · PDF・画像エクスポート対応',
-                step1:         'PDF アップロード',
-                step2:         '透かし除去',
-                step3:         'プレビュー & エクスポート',
-                uploadTitle:   'PDF ファイルをここにドロップ',
-                uploadSub:     'またはクリックして選択（最大 100MB）',
-                uploadBtn:     'ファイル選択',
-                settingsTitle: '設定',
-                sensitivityLabel: '検出感度',
-                sensLow:       '低',
-                sensMedium:    '中',
-                sensHigh:      '高',
-                sensitivityHint: '低：明確な透かしのみ | 中：推奨 | 高：積極的除去、内容に影響する場合あり',
-                processBtn:    '透かしを除去',
-                processing:    '処理中、しばらくお待ちください...',
-                processingBtn: '処理中...',
-                resultsTitle:  '処理結果',
-                statPages:     '総ページ数',
-                statText:      'テキスト透かし',
-                statImage:     '画像透かし',
-                prevPage:      '← 前へ',
-                nextPage:      '次へ →',
-                dpiLabel:      '画像 DPI：',
-                fmtLabel:      '形式：',
-                dpi150:        '150 DPI（高速）',
-                dpi200:        '200 DPI（推奨）',
-                dpi300:        '300 DPI（高画質）',
-                exportPdf:     '📥 PDF エクスポート',
-                exportImages:  '🖼️ 画像エクスポート（1ページ1枚）',
-                exportLong:    '📜 長尺画像エクスポート',
-                pageInfo:      (cur, total) => `${cur} / ${total} ページ`,
-                uploadOk:      'ファイルのアップロード成功',
-                uploadFail:    'アップロード失敗',
-                uploadPdfOnly: 'PDF ファイルをアップロードしてください',
-                networkErr:    'ネットワークエラー',
-                processFail:   '処理失敗',
-                processErr:    (msg) => `エラー: ${msg}`,
-                processOk:     (t, i) => `完了！テキスト透かし ${t} 個、画像透かし ${i} 個を除去しました`,
-                genLong:       '長尺画像を生成中...',
-            },
-            ko: {
-                subtitle:      'PDF 워터마크 자동 제거 · PDF 및 이미지 내보내기',
-                step1:         'PDF 업로드',
-                step2:         '워터마크 제거',
-                step3:         '미리보기 & 내보내기',
-                uploadTitle:   'PDF 파일을 여기에 드롭',
-                uploadSub:     '또는 클릭하여 선택 (최대 100MB)',
-                uploadBtn:     '파일 선택',
-                settingsTitle: '설정',
-                sensitivityLabel: '감지 민감도',
-                sensLow:       '낮음',
-                sensMedium:    '중간',
-                sensHigh:      '높음',
-                sensitivityHint: '낮음: 명확한 워터마크만 | 중간: 권장 | 높음: 적극적 제거, 내용에 영향 줄 수 있음',
-                processBtn:    '워터마크 제거 시작',
-                processing:    '처리 중, 잠시 기다려 주세요...',
-                processingBtn: '처리 중...',
-                resultsTitle:  '처리 결과',
-                statPages:     '총 페이지',
-                statText:      '텍스트 워터마크',
-                statImage:     '이미지 워터마크',
-                prevPage:      '← 이전',
-                nextPage:      '다음 →',
-                dpiLabel:      '이미지 DPI:',
-                fmtLabel:      '형식:',
-                dpi150:        '150 DPI (빠름)',
-                dpi200:        '200 DPI (권장)',
-                dpi300:        '300 DPI (고화질)',
-                exportPdf:     '📥 PDF 내보내기',
-                exportImages:  '🖼️ 이미지 내보내기 (페이지별)',
-                exportLong:    '📜 긴 이미지 내보내기',
-                pageInfo:      (cur, total) => `${cur} / ${total} 페이지`,
-                uploadOk:      '파일 업로드 성공',
-                uploadFail:    '업로드 실패',
-                uploadPdfOnly: 'PDF 파일을 업로드하세요',
-                networkErr:    '네트워크 오류',
-                processFail:   '처리 실패',
-                processErr:    (msg) => `오류: ${msg}`,
-                processOk:     (t, i) => `완료! 텍스트 워터마크 ${t}개, 이미지 워터마크 ${i}개 제거`,
-                genLong:       '긴 이미지 생성 중...',
-            },
-            es: {
-                subtitle:      'Eliminación inteligente de marcas de agua · Exportar PDF e imágenes',
-                step1:         'Subir PDF',
-                step2:         'Eliminar marca',
-                step3:         'Vista previa & Exportar',
-                uploadTitle:   'Arrastra el PDF aquí',
-                uploadSub:     'o haz clic para seleccionar (máx. 100MB)',
-                uploadBtn:     'Seleccionar archivo',
-                settingsTitle: 'Configuración',
-                sensitivityLabel: 'Sensibilidad',
-                sensLow:       'Baja',
-                sensMedium:    'Media',
-                sensHigh:      'Alta',
-                sensitivityHint: 'Baja: solo marcas obvias | Media: recomendado | Alta: agresivo, puede afectar contenido',
-                processBtn:    'Eliminar marca de agua',
-                processing:    'Procesando, por favor espera...',
-                processingBtn: 'Procesando...',
-                resultsTitle:  'Resultados',
-                statPages:     'Páginas',
-                statText:      'Marca texto',
-                statImage:     'Marca imagen',
-                prevPage:      '← Anterior',
-                nextPage:      'Siguiente →',
-                dpiLabel:      'DPI imagen:',
-                fmtLabel:      'Formato:',
-                dpi150:        '150 DPI (Rápido)',
-                dpi200:        '200 DPI (Recomendado)',
-                dpi300:        '300 DPI (Alta calidad)',
-                exportPdf:     '📥 Exportar PDF',
-                exportImages:  '🖼️ Exportar imágenes (por página)',
-                exportLong:    '📜 Exportar imagen larga',
-                pageInfo:      (cur, total) => `Página ${cur} / ${total}`,
-                uploadOk:      'Archivo subido correctamente',
-                uploadFail:    'Error al subir',
-                uploadPdfOnly: 'Por favor sube un archivo PDF',
-                networkErr:    'Error de red',
-                processFail:   'Error al procesar',
-                processErr:    (msg) => `Error: ${msg}`,
-                processOk:     (t, i) => `¡Listo! Eliminadas ${t} marcas de texto y ${i} de imagen`,
-                genLong:       'Generando imagen larga...',
-            },
-            fr: {
-                subtitle:      'Suppression intelligente des filigranes · Export PDF et images',
-                step1:         'Importer PDF',
-                step2:         'Supprimer filigrane',
-                step3:         'Aperçu & Export',
-                uploadTitle:   'Déposez le PDF ici',
-                uploadSub:     'ou cliquez pour sélectionner (max 100Mo)',
-                uploadBtn:     'Choisir un fichier',
-                settingsTitle: 'Paramètres',
-                sensitivityLabel: 'Sensibilité',
-                sensLow:       'Faible',
-                sensMedium:    'Moyenne',
-                sensHigh:      'Élevée',
-                sensitivityHint: 'Faible: filigranes évidents uniquement | Moyenne: recommandé | Élevée: agressif, peut affecter le contenu',
-                processBtn:    'Supprimer le filigrane',
-                processing:    'Traitement en cours...',
-                processingBtn: 'En cours...',
-                resultsTitle:  'Résultats',
-                statPages:     'Pages',
-                statText:      'Filigrane texte',
-                statImage:     'Filigrane image',
-                prevPage:      '← Précédent',
-                nextPage:      'Suivant →',
-                dpiLabel:      'DPI image:',
-                fmtLabel:      'Format:',
-                dpi150:        '150 DPI (Rapide)',
-                dpi200:        '200 DPI (Recommandé)',
-                dpi300:        '300 DPI (Haute qualité)',
-                exportPdf:     '📥 Exporter PDF',
-                exportImages:  '🖼️ Exporter images (par page)',
-                exportLong:    '📜 Exporter image longue',
-                pageInfo:      (cur, total) => `Page ${cur} / ${total}`,
-                uploadOk:      'Fichier importé avec succès',
-                uploadFail:    'Échec de l\'import',
-                uploadPdfOnly: 'Veuillez importer un fichier PDF',
-                networkErr:    'Erreur réseau',
-                processFail:   'Échec du traitement',
-                processErr:    (msg) => `Erreur: ${msg}`,
-                processOk:     (t, i) => `Terminé ! ${t} filigranes texte et ${i} image supprimés`,
-                genLong:       'Génération de l\'image longue...',
-            },
-            de: {
-                subtitle:      'Intelligente PDF-Wasserzeichen-Entfernung · PDF & Bilder exportieren',
-                step1:         'PDF hochladen',
-                step2:         'Wasserzeichen entfernen',
-                step3:         'Vorschau & Export',
-                uploadTitle:   'PDF-Datei hier ablegen',
-                uploadSub:     'oder klicken zum Auswählen (max. 100MB)',
-                uploadBtn:     'Datei auswählen',
-                settingsTitle: 'Einstellungen',
-                sensitivityLabel: 'Empfindlichkeit',
-                sensLow:       'Niedrig',
-                sensMedium:    'Mittel',
-                sensHigh:      'Hoch',
-                sensitivityHint: 'Niedrig: nur offensichtliche | Mittel: empfohlen | Hoch: aggressiv, kann Inhalt beeinflussen',
-                processBtn:    'Wasserzeichen entfernen',
-                processing:    'Wird verarbeitet...',
-                processingBtn: 'Verarbeitung...',
-                resultsTitle:  'Ergebnisse',
-                statPages:     'Seiten',
-                statText:      'Text-WZ',
-                statImage:     'Bild-WZ',
-                prevPage:      '← Zurück',
-                nextPage:      'Weiter →',
-                dpiLabel:      'Bild-DPI:',
-                fmtLabel:      'Format:',
-                dpi150:        '150 DPI (Schnell)',
-                dpi200:        '200 DPI (Empfohlen)',
-                dpi300:        '300 DPI (Hohe Qualität)',
-                exportPdf:     '📥 PDF exportieren',
-                exportImages:  '🖼️ Bilder exportieren (pro Seite)',
-                exportLong:    '📜 Langes Bild exportieren',
-                pageInfo:      (cur, total) => `Seite ${cur} / ${total}`,
-                uploadOk:      'Datei erfolgreich hochgeladen',
-                uploadFail:    'Upload fehlgeschlagen',
-                uploadPdfOnly: 'Bitte eine PDF-Datei hochladen',
-                networkErr:    'Netzwerkfehler',
-                processFail:   'Verarbeitung fehlgeschlagen',
-                processErr:    (msg) => `Fehler: ${msg}`,
-                processOk:     (t, i) => `Fertig! ${t} Text- und ${i} Bild-Wasserzeichen entfernt`,
-                genLong:       'Langes Bild wird erstellt...',
-            },
-            pt: {
-                subtitle:      'Remoção inteligente de marcas d\'água · Exportar PDF e imagens',
-                step1:         'Enviar PDF',
-                step2:         'Remover marca d\'água',
-                step3:         'Visualizar & Exportar',
-                uploadTitle:   'Arraste o PDF aqui',
-                uploadSub:     'ou clique para selecionar (máx. 100MB)',
-                uploadBtn:     'Selecionar arquivo',
-                settingsTitle: 'Configurações',
-                sensitivityLabel: 'Sensibilidade',
-                sensLow:       'Baixa',
-                sensMedium:    'Média',
-                sensHigh:      'Alta',
-                sensitivityHint: 'Baixa: apenas marcas óbvias | Média: recomendado | Alta: agressivo, pode afetar conteúdo',
-                processBtn:    'Remover marca d\'água',
-                processing:    'Processando, aguarde...',
-                processingBtn: 'Processando...',
-                resultsTitle:  'Resultados',
-                statPages:     'Páginas',
-                statText:      'Marca texto',
-                statImage:     'Marca imagem',
-                prevPage:      '← Anterior',
-                nextPage:      'Próximo →',
-                dpiLabel:      'DPI da imagem:',
-                fmtLabel:      'Formato:',
-                dpi150:        '150 DPI (Rápido)',
-                dpi200:        '200 DPI (Recomendado)',
-                dpi300:        '300 DPI (Alta qualidade)',
-                exportPdf:     '📥 Exportar PDF',
-                exportImages:  '🖼️ Exportar imagens (por página)',
-                exportLong:    '📜 Exportar imagem longa',
-                pageInfo:      (cur, total) => `Página ${cur} / ${total}`,
-                uploadOk:      'Arquivo enviado com sucesso',
-                uploadFail:    'Falha no envio',
-                uploadPdfOnly: 'Por favor envie um arquivo PDF',
-                networkErr:    'Erro de rede',
-                processFail:   'Falha no processamento',
-                processErr:    (msg) => `Erro: ${msg}`,
-                processOk:     (t, i) => `Concluído! ${t} marcas de texto e ${i} de imagem removidas`,
-                genLong:       'Gerando imagem longa...',
-            },
-        };
+    // ==================== i18n ====================
+    const i18n = {
+        zh: {
+            nbBadge:       '专为 NotebookLM 导出 PDF 设计',
+            heroTitle:     '水印一键清除',
+            heroSub:       '自动识别并去除 NotebookLM 导出 PDF 右下角的品牌水印，支持批量处理全部页面，导出干净的 PDF 或高清图片。',
+            chip1: '像素级精准去除', chip2: '导出 PDF / 图片 / 长图',
+            chip3: '本地处理，不上传服务器', chip4: '支持 8 种语言',
+            demoTitle:     'NotebookLM 导出 PDF 的水印长这样',
+            demoSub:       '本工具会自动检测每页右下角的品牌徽标，完整清除后无任何痕迹',
+            demoAfter:     '✓ 已清除',
+            nbHint:        '✓ 支持 NotebookLM PDF',
+            step1:         '上传 PDF', step2: '去除水印', step3: '预览 & 导出',
+            uploadTitle:   '拖放 NotebookLM PDF 到这里',
+            uploadSub:     '或点击选择文件（最大 100MB）',
+            uploadBtn:     '选择文件',
+            settingsTitle: '处理设置',
+            sensitivityLabel: '检测灵敏度',
+            sensLow: '低', sensMedium: '中', sensHigh: '高',
+            sensitivityHint: '低灵敏度：仅去除明显水印 | 中灵敏度：推荐 | 高灵敏度：激进去除，可能误删部分内容',
+            processBtn:    '开始去除水印',
+            processing:    '正在处理中，请稍候...',
+            processingBtn: '处理中...',
+            resultsTitle:  '处理结果',
+            statPages: '总页数', statText: '文本水印', statImage: '图片水印',
+            prevPage: '← 上一页', nextPage: '下一页 →',
+            dpiLabel: '图片 DPI：', fmtLabel: '图片格式：',
+            dpi150: '150 DPI（快速）', dpi200: '200 DPI（推荐）', dpi300: '300 DPI（高清）',
+            exportPdf: '📥 导出 PDF', exportImages: '🖼️ 导出图片（每页一张）', exportLong: '📜 导出长图',
+            pageInfo:      (c, t) => `第 ${c} 页 / 共 ${t} 页`,
+            uploadOk: '文件上传成功', uploadFail: '上传失败',
+            uploadPdfOnly: '请上传 PDF 文件', networkErr: '网络错误',
+            processFail: '处理失败',
+            processErr: (m) => `处理出错: ${m}`,
+            processOk: (t, i) => `处理完成！去除了 ${t} 个文本水印和 ${i} 个图片水印`,
+            genLong: '正在生成长图，请稍候...',
+        },
+        en: {
+            nbBadge:       'Built for NotebookLM exported PDFs',
+            heroTitle:     'Remove Watermarks Instantly',
+            heroSub:       'Automatically detect and remove the NotebookLM brand watermark in the bottom-right corner of every page. Export clean PDFs or high-res images.',
+            chip1: 'Pixel-level precision', chip2: 'Export PDF / Images / Long image',
+            chip3: 'Local processing, no upload', chip4: '8 languages supported',
+            demoTitle:     'This is what the NotebookLM watermark looks like',
+            demoSub:       'Automatically detects and removes the brand badge from every page, leaving no trace',
+            demoAfter:     '✓ Removed',
+            nbHint:        '✓ NotebookLM PDF supported',
+            step1: 'Upload PDF', step2: 'Remove Watermark', step3: 'Preview & Export',
+            uploadTitle:   'Drop your NotebookLM PDF here',
+            uploadSub:     'or click to select (max 100MB)',
+            uploadBtn:     'Select File',
+            settingsTitle: 'Settings',
+            sensitivityLabel: 'Sensitivity',
+            sensLow: 'Low', sensMedium: 'Medium', sensHigh: 'High',
+            sensitivityHint: 'Low: obvious watermarks only | Medium: recommended | High: aggressive, may affect content',
+            processBtn:    'Remove Watermark',
+            processing:    'Processing, please wait...',
+            processingBtn: 'Processing...',
+            resultsTitle:  'Results',
+            statPages: 'Pages', statText: 'Text WM', statImage: 'Image WM',
+            prevPage: '← Prev', nextPage: 'Next →',
+            dpiLabel: 'Image DPI:', fmtLabel: 'Format:',
+            dpi150: '150 DPI (Fast)', dpi200: '200 DPI (Recommended)', dpi300: '300 DPI (High Quality)',
+            exportPdf: '📥 Export PDF', exportImages: '🖼️ Export Images (per page)', exportLong: '📜 Export Long Image',
+            pageInfo:      (c, t) => `Page ${c} / ${t}`,
+            uploadOk: 'File uploaded', uploadFail: 'Upload failed',
+            uploadPdfOnly: 'Please upload a PDF', networkErr: 'Network error',
+            processFail: 'Processing failed',
+            processErr: (m) => `Error: ${m}`,
+            processOk: (t, i) => `Done! Removed ${t} text and ${i} image watermarks`,
+            genLong: 'Generating long image...',
+        },
+        ja: {
+            nbBadge: 'NotebookLM エクスポート PDF 専用',
+            heroTitle: '透かしをワンクリックで除去',
+            heroSub: 'NotebookLM の PDF 右下の透かしを自動検出・除去。全ページ一括処理、PDF・画像エクスポートに対応。',
+            chip1: 'ピクセル単位の精密除去', chip2: 'PDF / 画像 / 長尺画像エクスポート',
+            chip3: 'ローカル処理、サーバー不要', chip4: '8言語対応',
+            demoTitle: 'NotebookLM 透かしの見た目', demoSub: '各ページ右下のバッジを自動検出し、痕跡なく除去します',
+            demoAfter: '✓ 除去済み', nbHint: '✓ NotebookLM PDF 対応',
+            step1: 'PDF アップロード', step2: '透かし除去', step3: 'プレビュー & エクスポート',
+            uploadTitle: 'NotebookLM の PDF をここにドロップ', uploadSub: 'またはクリックして選択（最大 100MB）', uploadBtn: 'ファイル選択',
+            settingsTitle: '設定', sensitivityLabel: '検出感度',
+            sensLow: '低', sensMedium: '中', sensHigh: '高',
+            sensitivityHint: '低：明確な透かしのみ | 中：推奨 | 高：積極的除去',
+            processBtn: '透かしを除去', processing: '処理中...', processingBtn: '処理中...',
+            resultsTitle: '処理結果', statPages: 'ページ数', statText: 'テキスト', statImage: '画像',
+            prevPage: '← 前へ', nextPage: '次へ →', dpiLabel: 'DPI：', fmtLabel: '形式：',
+            dpi150: '150 DPI（高速）', dpi200: '200 DPI（推奨）', dpi300: '300 DPI（高画質）',
+            exportPdf: '📥 PDF エクスポート', exportImages: '🖼️ 画像（1ページ1枚）', exportLong: '📜 長尺画像',
+            pageInfo: (c, t) => `${c} / ${t} ページ`,
+            uploadOk: 'アップロード完了', uploadFail: 'アップロード失敗', uploadPdfOnly: 'PDF ファイルを選択してください',
+            networkErr: 'ネットワークエラー', processFail: '処理失敗',
+            processErr: (m) => `エラー: ${m}`, processOk: (t, i) => `完了！テキスト ${t}、画像 ${i} 個の透かしを除去`,
+            genLong: '長尺画像を生成中...',
+        },
+        ko: {
+            nbBadge: 'NotebookLM 내보내기 PDF 전용',
+            heroTitle: '워터마크 원클릭 제거',
+            heroSub: 'NotebookLM PDF 우측 하단의 브랜드 워터마크를 자동 감지·제거합니다. 전체 페이지 일괄 처리 지원.',
+            chip1: '픽셀 단위 정밀 제거', chip2: 'PDF / 이미지 / 긴 이미지 내보내기',
+            chip3: '로컬 처리, 서버 업로드 없음', chip4: '8개 언어 지원',
+            demoTitle: 'NotebookLM 워터마크는 이렇게 생겼습니다', demoSub: '매 페이지 우하단 뱃지를 자동 감지하여 흔적 없이 제거합니다',
+            demoAfter: '✓ 제거됨', nbHint: '✓ NotebookLM PDF 지원',
+            step1: 'PDF 업로드', step2: '워터마크 제거', step3: '미리보기 & 내보내기',
+            uploadTitle: 'NotebookLM PDF를 여기에 드롭', uploadSub: '또는 클릭하여 선택 (최대 100MB)', uploadBtn: '파일 선택',
+            settingsTitle: '설정', sensitivityLabel: '감지 민감도',
+            sensLow: '낮음', sensMedium: '중간', sensHigh: '높음',
+            sensitivityHint: '낮음: 명확한 워터마크만 | 중간: 권장 | 높음: 적극적 제거',
+            processBtn: '워터마크 제거 시작', processing: '처리 중...', processingBtn: '처리 중...',
+            resultsTitle: '처리 결과', statPages: '페이지', statText: '텍스트', statImage: '이미지',
+            prevPage: '← 이전', nextPage: '다음 →', dpiLabel: 'DPI:', fmtLabel: '형식:',
+            dpi150: '150 DPI (빠름)', dpi200: '200 DPI (권장)', dpi300: '300 DPI (고화질)',
+            exportPdf: '📥 PDF 내보내기', exportImages: '🖼️ 이미지 내보내기', exportLong: '📜 긴 이미지',
+            pageInfo: (c, t) => `${c} / ${t} 페이지`,
+            uploadOk: '업로드 완료', uploadFail: '업로드 실패', uploadPdfOnly: 'PDF 파일을 업로드하세요',
+            networkErr: '네트워크 오류', processFail: '처리 실패',
+            processErr: (m) => `오류: ${m}`, processOk: (t, i) => `완료! 텍스트 ${t}개, 이미지 ${i}개 제거`,
+            genLong: '긴 이미지 생성 중...',
+        },
+        es: {
+            nbBadge: 'Diseñado para PDFs exportados de NotebookLM',
+            heroTitle: 'Elimina marcas de agua al instante',
+            heroSub: 'Detecta y elimina automáticamente la marca de agua de NotebookLM en la esquina inferior derecha de cada página.',
+            chip1: 'Precisión a nivel de píxel', chip2: 'Exportar PDF / imágenes / imagen larga',
+            chip3: 'Procesamiento local, sin subida', chip4: '8 idiomas',
+            demoTitle: 'Así es la marca de agua de NotebookLM', demoSub: 'Detecta y elimina el badge automáticamente sin dejar rastro',
+            demoAfter: '✓ Eliminada', nbHint: '✓ PDF NotebookLM compatible',
+            step1: 'Subir PDF', step2: 'Eliminar marca', step3: 'Ver & Exportar',
+            uploadTitle: 'Arrastra tu PDF de NotebookLM aquí', uploadSub: 'o haz clic para seleccionar (máx. 100MB)', uploadBtn: 'Seleccionar archivo',
+            settingsTitle: 'Configuración', sensitivityLabel: 'Sensibilidad',
+            sensLow: 'Baja', sensMedium: 'Media', sensHigh: 'Alta',
+            sensitivityHint: 'Baja: solo obvias | Media: recomendado | Alta: agresivo',
+            processBtn: 'Eliminar marca de agua', processing: 'Procesando...', processingBtn: 'Procesando...',
+            resultsTitle: 'Resultados', statPages: 'Páginas', statText: 'Texto', statImage: 'Imagen',
+            prevPage: '← Anterior', nextPage: 'Siguiente →', dpiLabel: 'DPI:', fmtLabel: 'Formato:',
+            dpi150: '150 DPI (Rápido)', dpi200: '200 DPI (Recomendado)', dpi300: '300 DPI (Alta calidad)',
+            exportPdf: '📥 Exportar PDF', exportImages: '🖼️ Exportar imágenes', exportLong: '📜 Imagen larga',
+            pageInfo: (c, t) => `Pág. ${c} / ${t}`,
+            uploadOk: 'Archivo subido', uploadFail: 'Error al subir', uploadPdfOnly: 'Por favor sube un PDF',
+            networkErr: 'Error de red', processFail: 'Error al procesar',
+            processErr: (m) => `Error: ${m}`, processOk: (t, i) => `¡Listo! ${t} texto y ${i} imagen eliminadas`,
+            genLong: 'Generando imagen larga...',
+        },
+        fr: {
+            nbBadge: 'Conçu pour les PDF exportés de NotebookLM',
+            heroTitle: 'Supprimez les filigranes en un clic',
+            heroSub: 'Détecte et supprime automatiquement le filigrane NotebookLM en bas à droite de chaque page.',
+            chip1: 'Précision au pixel près', chip2: 'Exporter PDF / images / longue image',
+            chip3: 'Traitement local, sans envoi', chip4: '8 langues',
+            demoTitle: 'Voici le filigrane NotebookLM', demoSub: 'Détection et suppression automatique du badge sur chaque page, sans trace',
+            demoAfter: '✓ Supprimé', nbHint: '✓ PDF NotebookLM supporté',
+            step1: 'Importer PDF', step2: 'Supprimer filigrane', step3: 'Aperçu & Export',
+            uploadTitle: 'Déposez votre PDF NotebookLM ici', uploadSub: 'ou cliquez pour sélectionner (max 100Mo)', uploadBtn: 'Choisir un fichier',
+            settingsTitle: 'Paramètres', sensitivityLabel: 'Sensibilité',
+            sensLow: 'Faible', sensMedium: 'Moyenne', sensHigh: 'Élevée',
+            sensitivityHint: 'Faible: uniquement évidents | Moyenne: recommandé | Élevée: agressif',
+            processBtn: 'Supprimer le filigrane', processing: 'Traitement...', processingBtn: 'En cours...',
+            resultsTitle: 'Résultats', statPages: 'Pages', statText: 'Texte', statImage: 'Image',
+            prevPage: '← Précédent', nextPage: 'Suivant →', dpiLabel: 'DPI:', fmtLabel: 'Format:',
+            dpi150: '150 DPI (Rapide)', dpi200: '200 DPI (Recommandé)', dpi300: '300 DPI (Haute qualité)',
+            exportPdf: '📥 Exporter PDF', exportImages: '🖼️ Exporter images', exportLong: '📜 Image longue',
+            pageInfo: (c, t) => `Page ${c} / ${t}`,
+            uploadOk: 'Fichier importé', uploadFail: 'Échec import', uploadPdfOnly: 'Veuillez importer un PDF',
+            networkErr: 'Erreur réseau', processFail: 'Échec traitement',
+            processErr: (m) => `Erreur: ${m}`, processOk: (t, i) => `Terminé ! ${t} texte et ${i} image supprimés`,
+            genLong: 'Génération image longue...',
+        },
+        de: {
+            nbBadge: 'Für NotebookLM-exportierte PDFs entwickelt',
+            heroTitle: 'Wasserzeichen auf Knopfdruck entfernen',
+            heroSub: 'Erkennt und entfernt automatisch das NotebookLM-Wasserzeichen unten rechts auf jeder Seite.',
+            chip1: 'Pixelgenaue Entfernung', chip2: 'PDF / Bilder / Langes Bild exportieren',
+            chip3: 'Lokale Verarbeitung, kein Upload', chip4: '8 Sprachen',
+            demoTitle: 'So sieht das NotebookLM-Wasserzeichen aus', demoSub: 'Automatische Erkennung und rückstandslose Entfernung des Badges',
+            demoAfter: '✓ Entfernt', nbHint: '✓ NotebookLM PDF unterstützt',
+            step1: 'PDF hochladen', step2: 'Wasserzeichen entfernen', step3: 'Vorschau & Export',
+            uploadTitle: 'NotebookLM PDF hier ablegen', uploadSub: 'oder klicken zum Auswählen (max. 100MB)', uploadBtn: 'Datei auswählen',
+            settingsTitle: 'Einstellungen', sensitivityLabel: 'Empfindlichkeit',
+            sensLow: 'Niedrig', sensMedium: 'Mittel', sensHigh: 'Hoch',
+            sensitivityHint: 'Niedrig: nur offensichtliche | Mittel: empfohlen | Hoch: aggressiv',
+            processBtn: 'Wasserzeichen entfernen', processing: 'Wird verarbeitet...', processingBtn: 'Verarbeitung...',
+            resultsTitle: 'Ergebnisse', statPages: 'Seiten', statText: 'Text', statImage: 'Bild',
+            prevPage: '← Zurück', nextPage: 'Weiter →', dpiLabel: 'DPI:', fmtLabel: 'Format:',
+            dpi150: '150 DPI (Schnell)', dpi200: '200 DPI (Empfohlen)', dpi300: '300 DPI (Hohe Qualität)',
+            exportPdf: '📥 PDF exportieren', exportImages: '🖼️ Bilder exportieren', exportLong: '📜 Langes Bild',
+            pageInfo: (c, t) => `Seite ${c} / ${t}`,
+            uploadOk: 'Datei hochgeladen', uploadFail: 'Upload fehlgeschlagen', uploadPdfOnly: 'Bitte eine PDF-Datei hochladen',
+            networkErr: 'Netzwerkfehler', processFail: 'Verarbeitung fehlgeschlagen',
+            processErr: (m) => `Fehler: ${m}`, processOk: (t, i) => `Fertig! ${t} Text- und ${i} Bild-Wasserzeichen entfernt`,
+            genLong: 'Langes Bild wird erstellt...',
+        },
+        pt: {
+            nbBadge: 'Feito para PDFs exportados do NotebookLM',
+            heroTitle: 'Remove marcas d\'água em um clique',
+            heroSub: 'Detecta e remove automaticamente a marca d\'água do NotebookLM no canto inferior direito de cada página.',
+            chip1: 'Precisão em nível de pixel', chip2: 'Exportar PDF / imagens / imagem longa',
+            chip3: 'Processamento local, sem upload', chip4: '8 idiomas',
+            demoTitle: 'É assim que aparece a marca d\'água do NotebookLM', demoSub: 'Detecção e remoção automática do badge em todas as páginas',
+            demoAfter: '✓ Removida', nbHint: '✓ PDF NotebookLM suportado',
+            step1: 'Enviar PDF', step2: 'Remover marca', step3: 'Visualizar & Exportar',
+            uploadTitle: 'Arraste seu PDF NotebookLM aqui', uploadSub: 'ou clique para selecionar (máx. 100MB)', uploadBtn: 'Selecionar arquivo',
+            settingsTitle: 'Configurações', sensitivityLabel: 'Sensibilidade',
+            sensLow: 'Baixa', sensMedium: 'Média', sensHigh: 'Alta',
+            sensitivityHint: 'Baixa: apenas óbvias | Média: recomendado | Alta: agressivo',
+            processBtn: 'Remover marca d\'água', processing: 'Processando...', processingBtn: 'Processando...',
+            resultsTitle: 'Resultados', statPages: 'Páginas', statText: 'Texto', statImage: 'Imagem',
+            prevPage: '← Anterior', nextPage: 'Próximo →', dpiLabel: 'DPI:', fmtLabel: 'Formato:',
+            dpi150: '150 DPI (Rápido)', dpi200: '200 DPI (Recomendado)', dpi300: '300 DPI (Alta qualidade)',
+            exportPdf: '📥 Exportar PDF', exportImages: '🖼️ Exportar imagens', exportLong: '📜 Imagem longa',
+            pageInfo: (c, t) => `Página ${c} / ${t}`,
+            uploadOk: 'Arquivo enviado', uploadFail: 'Falha no envio', uploadPdfOnly: 'Por favor envie um PDF',
+            networkErr: 'Erro de rede', processFail: 'Falha no processamento',
+            processErr: (m) => `Erro: ${m}`, processOk: (t, i) => `Concluído! ${t} texto e ${i} imagem removidas`,
+            genLong: 'Gerando imagem longa...',
+        },
+    };
 
-        const langLocale = {
-            zh: 'zh-CN', en: 'en', ja: 'ja', ko: 'ko',
-            es: 'es', fr: 'fr', de: 'de', pt: 'pt-BR',
-        };
+    const langLocale = { zh:'zh-CN', en:'en', ja:'ja', ko:'ko', es:'es', fr:'fr', de:'de', pt:'pt-BR' };
+    let lang = 'zh';
 
-        let lang = 'zh';
-
-        function applyLang() {
-            const t = i18n[lang];
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (t[key] && typeof t[key] === 'string') el.textContent = t[key];
-            });
-            document.documentElement.lang = langLocale[lang] || lang;
-        }
-
-        document.getElementById('langSelect').addEventListener('change', function () {
-            lang = this.value;
-            applyLang();
-            if (state.totalPages > 0) updatePageInfo();
+    function applyLang() {
+        const t = i18n[lang];
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (t[key] && typeof t[key] === 'string') el.textContent = t[key];
         });
+        document.documentElement.lang = langLocale[lang] || lang;
+    }
 
-        function T(key, ...args) {
-            const val = i18n[lang][key];
-            return typeof val === 'function' ? val(...args) : (val || key);
-        }
+    document.getElementById('langSelect').addEventListener('change', function () {
+        lang = this.value;
+        applyLang();
+        if (state.totalPages > 0) updatePageInfo();
+    });
 
-        // ==================== State & DOM ====================
-        const state = {
-            taskId: null,
-            filename: null,
-            currentPage: 1,
-            totalPages: 0,
-            sensitivity: 'medium',
-        };
+    function T(key, ...args) {
+        const val = i18n[lang][key];
+        return typeof val === 'function' ? val(...args) : (val || key);
+    }
 
-        // DOM
-        const $ = id => document.getElementById(id);
-        const uploadZone = $('uploadZone');
-        const fileInput = $('fileInput');
-        const fileInfo = $('fileInfo');
-        const settingsPanel = $('settingsPanel');
-        const progressBar = $('progressBar');
-        const resultsPanel = $('resultsPanel');
+    // ==================== State ====================
+    const state = { taskId: null, filename: null, currentPage: 1, totalPages: 0, sensitivity: 'medium' };
 
-        // 步骤切换
-        function setStep(n) {
-            document.querySelectorAll('.step').forEach((el, i) => {
-                el.classList.remove('active', 'done');
-                if (i + 1 < n) el.classList.add('done');
-                if (i + 1 === n) el.classList.add('active');
-            });
-        }
+    const $ = id => document.getElementById(id);
+    const uploadZone   = $('uploadZone');
+    const fileInput    = $('fileInput');
+    const fileInfo     = $('fileInfo');
+    const settingsPanel= $('settingsPanel');
+    const progressBar  = $('progressBar');
+    const resultsPanel = $('resultsPanel');
 
-        // Toast
-        function toast(msg, type = 'success') {
-            const t = $('toast');
-            t.textContent = msg;
-            t.className = 'toast show ' + type;
-            setTimeout(() => t.className = 'toast', 3000);
-        }
-
-        // 文件大小格式化
-        function formatSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-        }
-
-        // 上传区事件
-        uploadZone.addEventListener('click', () => fileInput.click());
-
-        uploadZone.addEventListener('dragover', e => {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
+    function setStep(n) {
+        document.querySelectorAll('.step').forEach((el, i) => {
+            el.classList.remove('active', 'done');
+            if (i + 1 < n) el.classList.add('done');
+            if (i + 1 === n) el.classList.add('active');
         });
+    }
 
-        uploadZone.addEventListener('dragleave', () => {
-            uploadZone.classList.remove('dragover');
-        });
+    function toast(msg, type = 'success') {
+        const t = $('toast');
+        t.textContent = msg;
+        t.className = 'toast show ' + type;
+        setTimeout(() => t.className = 'toast', 3000);
+    }
 
-        uploadZone.addEventListener('drop', e => {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
-            if (file && file.name.toLowerCase().endsWith('.pdf')) {
-                handleFile(file);
-            } else {
-                toast(T('uploadPdfOnly'), 'error');
-            }
-        });
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }
 
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files[0]) handleFile(fileInput.files[0]);
-        });
+    uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', e => {
+        e.preventDefault(); uploadZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.name.toLowerCase().endsWith('.pdf')) handleFile(file);
+        else toast(T('uploadPdfOnly'), 'error');
+    });
+    fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
 
-        // 处理文件上传
-        async function handleFile(file) {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = await res.json();
-
-                if (res.ok) {
-                    state.taskId = data.task_id;
-                    state.filename = data.filename;
-
-                    $('fileName').textContent = file.name;
-                    $('fileSize').textContent = formatSize(file.size);
-
-                    uploadZone.style.display = 'none';
-                    fileInfo.classList.add('show');
-                    settingsPanel.classList.add('show');
-
-                    setStep(2);
-                    toast(T('uploadOk'));
-                } else {
-                    toast(data.error || T('uploadFail'), 'error');
-                }
-            } catch (err) {
-                toast(T('networkErr'), 'error');
-            }
-        }
-
-        // 移除文件
-        $('fileRemove').addEventListener('click', () => {
-            state.taskId = null;
-            state.filename = null;
-            fileInfo.classList.remove('show');
-            settingsPanel.classList.remove('show');
-            resultsPanel.classList.remove('show');
-            progressBar.classList.remove('show');
-            uploadZone.style.display = '';
-            fileInput.value = '';
-            setStep(1);
-        });
-
-        // 灵敏度选择
-        $('sensitivityOptions').addEventListener('click', e => {
-            if (e.target.tagName === 'BUTTON') {
-                document.querySelectorAll('.sensitivity-options button').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                state.sensitivity = e.target.dataset.value;
-            }
-        });
-
-        // 处理按钮
-        $('processBtn').addEventListener('click', async () => {
-            const btn = $('processBtn');
-            btn.disabled = true;
-            btn.innerHTML = `<span class="spinner"></span> ${T('processingBtn')}`;
-
-            settingsPanel.classList.remove('show');
-            progressBar.classList.add('show');
-            progressBar.classList.add('processing');
-
-            try {
-                const res = await fetch('/api/process', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        task_id: state.taskId,
-                        filename: state.filename,
-                        sensitivity: state.sensitivity,
-                    }),
-                });
-
-                const data = await res.json();
-
-                progressBar.classList.remove('processing');
-                $('progressFill').style.width = '100%';
-
-                if (res.ok) {
-                    setTimeout(() => {
-                        progressBar.classList.remove('show');
-                        showResults(data);
-                    }, 500);
-                } else {
-                    progressBar.classList.remove('show');
-                    settingsPanel.classList.add('show');
-                    toast(data.error || T('processFail'), 'error');
-                }
-            } catch (err) {
-                progressBar.classList.remove('show', 'processing');
+    async function handleFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (res.ok) {
+                state.taskId = data.task_id;
+                state.filename = data.filename;
+                $('fileName').textContent = file.name;
+                $('fileSize').textContent = formatSize(file.size);
+                uploadZone.style.display = 'none';
+                $('demoStrip').style.display = 'none';
+                fileInfo.classList.add('show');
                 settingsPanel.classList.add('show');
-                toast(T('processErr', err.message), 'error');
+                setStep(2);
+                toast(T('uploadOk'));
+            } else {
+                toast(data.error || T('uploadFail'), 'error');
             }
+        } catch { toast(T('networkErr'), 'error'); }
+    }
 
-            btn.disabled = false;
-            btn.textContent = T('processBtn');
-        });
+    $('fileRemove').addEventListener('click', () => {
+        state.taskId = null; state.filename = null;
+        fileInfo.classList.remove('show');
+        settingsPanel.classList.remove('show');
+        resultsPanel.classList.remove('show');
+        progressBar.classList.remove('show');
+        uploadZone.style.display = '';
+        $('demoStrip').style.display = '';
+        fileInput.value = '';
+        setStep(1);
+    });
 
-        // 显示结果
-        async function showResults(data) {
-            const stats = data.stats;
-            $('statPages').textContent = stats.pages;
-            $('statText').textContent = stats.text_removed;
-            $('statImage').textContent = stats.image_removed;
-
-            state.totalPages = stats.pages;
-            state.currentPage = 1;
-
-            resultsPanel.classList.add('show');
-            setStep(3);
-
-            loadPreview();
-            toast(T('processOk', stats.text_removed, stats.image_removed));
+    $('sensitivityOptions').addEventListener('click', e => {
+        if (e.target.tagName === 'BUTTON') {
+            document.querySelectorAll('.sensitivity-options button').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            state.sensitivity = e.target.dataset.value;
         }
+    });
 
-        // 加载预览
-        function updatePageInfo() {
-            $('pageInfo').textContent = T('pageInfo', state.currentPage, state.totalPages);
-        }
-
-        function loadPreview() {
-            const img = $('previewImg');
-            img.src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
-            updatePageInfo();
-            $('prevPage').disabled = state.currentPage <= 1;
-            $('nextPage').disabled = state.currentPage >= state.totalPages;
-        }
-
-        $('prevPage').addEventListener('click', () => {
-            if (state.currentPage > 1) {
-                state.currentPage--;
-                loadPreview();
+    $('processBtn').addEventListener('click', async () => {
+        const btn = $('processBtn');
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span><span>${T('processingBtn')}</span>`;
+        settingsPanel.classList.remove('show');
+        progressBar.classList.add('show', 'processing');
+        try {
+            const res = await fetch('/api/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_id: state.taskId, filename: state.filename, sensitivity: state.sensitivity }),
+            });
+            const data = await res.json();
+            progressBar.classList.remove('processing');
+            $('progressFill').style.width = '100%';
+            if (res.ok) {
+                setTimeout(() => { progressBar.classList.remove('show'); showResults(data); }, 500);
+            } else {
+                progressBar.classList.remove('show');
+                settingsPanel.classList.add('show');
+                toast(data.error || T('processFail'), 'error');
             }
-        });
+        } catch (err) {
+            progressBar.classList.remove('show', 'processing');
+            settingsPanel.classList.add('show');
+            toast(T('processErr', err.message), 'error');
+        }
+        btn.disabled = false;
+        btn.innerHTML = `<span>✨</span><span>${T('processBtn')}</span>`;
+    });
 
-        $('nextPage').addEventListener('click', () => {
-            if (state.currentPage < state.totalPages) {
-                state.currentPage++;
-                loadPreview();
-            }
-        });
+    function showResults(data) {
+        const s = data.stats;
+        $('statPages').textContent = s.pages;
+        $('statText').textContent  = s.text_removed;
+        $('statImage').textContent = s.image_removed;
+        state.totalPages = s.pages;
+        state.currentPage = 1;
+        resultsPanel.classList.add('show');
+        setStep(3);
+        loadPreview();
+        toast(T('processOk', s.text_removed, s.image_removed));
+    }
 
-        // 导出 PDF
-        $('exportPdf').addEventListener('click', () => {
-            window.location.href = `/api/export/pdf/${state.taskId}`;
-        });
+    function updatePageInfo() {
+        $('pageInfo').textContent = T('pageInfo', state.currentPage, state.totalPages);
+    }
 
-        // 导出图片
-        $('exportImages').addEventListener('click', () => {
-            const dpi = $('dpiSelect').value;
-            const fmt = $('formatSelect').value;
-            window.location.href = `/api/export/images/${state.taskId}?dpi=${dpi}&format=${fmt}`;
-        });
+    function loadPreview() {
+        $('previewImg').src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
+        updatePageInfo();
+        $('prevPage').disabled = state.currentPage <= 1;
+        $('nextPage').disabled = state.currentPage >= state.totalPages;
+    }
 
-        // 导出长图
-        $('exportLong').addEventListener('click', () => {
-            const dpi = $('dpiSelect').value;
-            const fmt = $('formatSelect').value;
-            toast(T('genLong'));
-            window.location.href = `/api/export/longimage/${state.taskId}?dpi=${dpi}&format=${fmt}`;
-        });
+    $('prevPage').addEventListener('click', () => { if (state.currentPage > 1) { state.currentPage--; loadPreview(); } });
+    $('nextPage').addEventListener('click', () => { if (state.currentPage < state.totalPages) { state.currentPage++; loadPreview(); } });
+
+    $('exportPdf').addEventListener('click', () => { window.location.href = `/api/export/pdf/${state.taskId}`; });
+    $('exportImages').addEventListener('click', () => {
+        const dpi = $('dpiSelect').value, fmt = $('formatSelect').value;
+        window.location.href = `/api/export/images/${state.taskId}?dpi=${dpi}&format=${fmt}`;
+    });
+    $('exportLong').addEventListener('click', () => {
+        const dpi = $('dpiSelect').value, fmt = $('formatSelect').value;
+        toast(T('genLong'));
+        window.location.href = `/api/export/longimage/${state.taskId}?dpi=${dpi}&format=${fmt}`;
+    });
     </script>
 </body>
 </html>
