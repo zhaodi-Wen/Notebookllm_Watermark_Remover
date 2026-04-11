@@ -936,7 +936,16 @@
     }
 
     // ==================== State ====================
-    const state = { taskId: null, filename: null, fileType: 'pdf', currentPage: 1, totalPages: 0, sensitivity: 'medium' };
+    const state = {
+        taskId: null, filename: null, fileType: 'pdf',
+        blobUrl: null,        // Vercel Blob 模式：上传后的 blob url
+        resultUrl: null,      // Vercel Blob 模式：处理结果的 blob url
+        currentPage: 1, totalPages: 0, sensitivity: 'medium'
+    };
+
+    // 检测是否运行在 Vercel 上（通过请求 /api/is-vercel 或直接判断 hostname）
+    const IS_VERCEL = location.hostname.endsWith('.vercel.app') ||
+                      location.hostname.endsWith('.vercel.com');
 
     const $ = id => document.getElementById(id);
     const uploadZone   = $('uploadZone');
@@ -981,6 +990,15 @@
     fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
 
     async function handleFile(file) {
+        if (IS_VERCEL) {
+            await handleFileBlob(file);
+        } else {
+            await handleFileLocal(file);
+        }
+    }
+
+    // ---- 本地上传 ----
+    async function handleFileLocal(file) {
         const formData = new FormData();
         formData.append('file', file);
         try {
@@ -990,13 +1008,7 @@
                 state.taskId = data.task_id;
                 state.filename = data.filename;
                 state.fileType = data.file_type || 'pdf';
-                $('fileName').textContent = file.name;
-                $('fileSize').textContent = formatSize(file.size);
-                uploadZone.style.display = 'none';
-                $('demoStrip').style.display = 'none';
-                fileInfo.classList.add('show');
-                settingsPanel.classList.add('show');
-                setStep(2);
+                _onUploadSuccess(file);
                 toast(T('uploadOk'));
             } else {
                 toast(data.error || T('uploadFail'), 'error');
@@ -1004,8 +1016,50 @@
         } catch { toast(T('networkErr'), 'error'); }
     }
 
+    // ---- Vercel Blob 直传 ----
+    async function handleFileBlob(file) {
+        try {
+            // 1) 获取客户端上传 token
+            const tokenRes = await fetch('/api/upload-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: file.name }),
+            });
+            const tokenData = await tokenRes.json();
+            if (!tokenRes.ok) { toast(tokenData.error || T('uploadFail'), 'error'); return; }
+
+            const { client_token, file_type, filename } = tokenData;
+
+            // 2) 前端直传到 Blob（不经过 Serverless 函数，无大小限制）
+            const { upload } = await import('https://unpkg.com/@vercel/blob@0.27.0/dist/index.browser.js');
+            const blob = await upload(filename, file, {
+                access: 'public',
+                handleUploadUrl: '/api/upload-url',
+                clientPayload: JSON.stringify({ filename: file.name }),
+            });
+
+            state.blobUrl  = blob.url;
+            state.filename = filename;
+            state.fileType = file_type;
+            state.taskId   = `blob_${Date.now()}`;
+            _onUploadSuccess(file);
+            toast(T('uploadOk'));
+        } catch (err) { toast(T('networkErr') + ': ' + err.message, 'error'); }
+    }
+
+    function _onUploadSuccess(file) {
+        $('fileName').textContent = file.name;
+        $('fileSize').textContent = formatSize(file.size);
+        uploadZone.style.display = 'none';
+        $('demoStrip').style.display = 'none';
+        fileInfo.classList.add('show');
+        settingsPanel.classList.add('show');
+        setStep(2);
+    }
+
     $('fileRemove').addEventListener('click', () => {
         state.taskId = null; state.filename = null; state.fileType = 'pdf';
+        state.blobUrl = null; state.resultUrl = null;
         fileInfo.classList.remove('show');
         settingsPanel.classList.remove('show');
         resultsPanel.classList.remove('show');
@@ -1031,15 +1085,21 @@
         settingsPanel.classList.remove('show');
         progressBar.classList.add('show', 'processing');
         try {
+            // Blob 模式：传 blob_url；本地模式：传 task_id + filename
+            const body = state.blobUrl
+                ? { blob_url: state.blobUrl, filename: state.filename, task_id: state.taskId, sensitivity: state.sensitivity }
+                : { task_id: state.taskId, filename: state.filename, sensitivity: state.sensitivity };
+
             const res = await fetch('/api/process', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ task_id: state.taskId, filename: state.filename, sensitivity: state.sensitivity }),
+                body: JSON.stringify(body),
             });
             const data = await res.json();
             progressBar.classList.remove('processing');
             $('progressFill').style.width = '100%';
             if (res.ok) {
+                if (data.result_url) state.resultUrl = data.result_url;
                 setTimeout(() => { progressBar.classList.remove('show'); showResults(data); }, 500);
             } else {
                 progressBar.classList.remove('show');
@@ -1080,7 +1140,12 @@
     }
 
     function loadPreview() {
-        $('previewImg').src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
+        if (state.resultUrl) {
+            // Blob 模式：直接显示 blob 图片 URL
+            $('previewImg').src = state.resultUrl + `?t=${Date.now()}`;
+        } else {
+            $('previewImg').src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
+        }
         updatePageInfo();
         $('prevPage').disabled = state.currentPage <= 1;
         $('nextPage').disabled = state.currentPage >= state.totalPages;
@@ -1089,7 +1154,10 @@
     $('prevPage').addEventListener('click', () => { if (state.currentPage > 1) { state.currentPage--; loadPreview(); } });
     $('nextPage').addEventListener('click', () => { if (state.currentPage < state.totalPages) { state.currentPage++; loadPreview(); } });
 
-    $('exportPdf').addEventListener('click', () => { window.location.href = `/api/export/pdf/${state.taskId}`; });
+    $('exportPdf').addEventListener('click', () => {
+        if (state.resultUrl) window.open(state.resultUrl, '_blank');
+        else window.location.href = `/api/export/pdf/${state.taskId}`;
+    });
     $('exportImages').addEventListener('click', () => {
         const dpi = $('dpiSelect').value, fmt = $('formatSelect').value;
         window.location.href = `/api/export/images/${state.taskId}?dpi=${dpi}&format=${fmt}`;
@@ -1100,7 +1168,8 @@
         window.location.href = `/api/export/longimage/${state.taskId}?dpi=${dpi}&format=${fmt}`;
     });
     $('exportImageFile').addEventListener('click', () => {
-        window.location.href = `/api/export/image/${state.taskId}`;
+        if (state.resultUrl) window.open(state.resultUrl, '_blank');
+        else window.location.href = `/api/export/image/${state.taskId}`;
     });
     </script>
 </body>
