@@ -3,7 +3,7 @@ import uuid
 import zipfile
 import io
 import fitz  # PyMuPDF
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, render_template, redirect
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -1013,22 +1013,42 @@ def _get_task_dir(task_id):
     return os.path.join(app.config['OUTPUT_FOLDER'], task_id)
 
 
+def _ensure_pdf(task_id, blob_url=None):
+    """确保本地有 PDF 文件：优先 /tmp，否则从 Blob 下载"""
+    import glob
+    import requests as req_lib
+    task_dir = _get_task_dir(task_id)
+    pdf_files = glob.glob(os.path.join(task_dir, 'clean_*.pdf'))
+    if pdf_files:
+        return pdf_files[0]
+    # 兼容本地模式
+    output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+    if os.path.isdir(output_dir):
+        local = [os.path.join(output_dir, f)
+                 for f in os.listdir(output_dir) if f.endswith('.pdf')]
+        if local:
+            return local[0]
+    # 从 Blob 下载
+    if blob_url:
+        os.makedirs(task_dir, exist_ok=True)
+        resp = req_lib.get(blob_url, timeout=60)
+        resp.raise_for_status()
+        pdf_path = os.path.join(task_dir, 'clean_downloaded.pdf')
+        with open(pdf_path, 'wb') as f:
+            f.write(resp.content)
+        return pdf_path
+    return None
+
+
 @app.route('/api/export/pdf/<task_id>')
 def export_pdf(task_id):
     """导出去水印后的 PDF"""
-    import glob
-    task_dir = _get_task_dir(task_id)
-    pdf_files = glob.glob(os.path.join(task_dir, 'clean_*.pdf'))
-    if not pdf_files:
-        # 兼容本地模式目录结构
-        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
-        if os.path.isdir(output_dir):
-            pdf_files = [os.path.join(output_dir, f)
-                         for f in os.listdir(output_dir) if f.endswith('.pdf')]
-    if not pdf_files:
+    blob_url = request.args.get('blob_url')
+    if blob_url:
+        return redirect(blob_url)
+    pdf_path = _ensure_pdf(task_id)
+    if not pdf_path:
         return jsonify({'error': '未找到文件'}), 404
-
-    pdf_path = pdf_files[0]
     return send_file(pdf_path, as_attachment=True,
                      download_name=os.path.basename(pdf_path))
 
@@ -1036,24 +1056,18 @@ def export_pdf(task_id):
 @app.route('/api/export/images/<task_id>')
 def export_images(task_id):
     """导出为图片（ZIP 打包，每页一张）"""
-    import glob
     dpi = request.args.get('dpi', 200, type=int)
     fmt = request.args.get('format', 'png')
+    blob_url = request.args.get('blob_url')
 
     if fmt not in ('png', 'jpg', 'jpeg'):
         fmt = 'png'
 
     task_dir = _get_task_dir(task_id)
-    pdf_files = glob.glob(os.path.join(task_dir, 'clean_*.pdf'))
-    if not pdf_files:
-        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
-        if os.path.isdir(output_dir):
-            pdf_files = [os.path.join(output_dir, f)
-                         for f in os.listdir(output_dir) if f.endswith('.pdf')]
-    if not pdf_files:
+    pdf_path = _ensure_pdf(task_id, blob_url)
+    if not pdf_path:
         return jsonify({'error': '未找到文件'}), 404
 
-    pdf_path = pdf_files[0]
     img_dir = os.path.join(task_dir, 'images')
     os.makedirs(img_dir, exist_ok=True)
 
@@ -1078,25 +1092,17 @@ def export_images(task_id):
 @app.route('/api/export/longimage/<task_id>')
 def export_long_image(task_id):
     """将所有页面垂直拼接成一张长图导出"""
-    import glob
     from PIL import Image as PILImage
 
     dpi = request.args.get('dpi', 200, type=int)
     fmt = request.args.get('format', 'png')
+    blob_url = request.args.get('blob_url')
     if fmt not in ('png', 'jpg', 'jpeg'):
         fmt = 'png'
 
-    task_dir = _get_task_dir(task_id)
-    pdf_files = glob.glob(os.path.join(task_dir, 'clean_*.pdf'))
-    if not pdf_files:
-        output_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
-        if os.path.isdir(output_dir):
-            pdf_files = [os.path.join(output_dir, f)
-                         for f in os.listdir(output_dir) if f.endswith('.pdf')]
-    if not pdf_files:
+    pdf_path = _ensure_pdf(task_id, blob_url)
+    if not pdf_path:
         return jsonify({'error': '未找到文件'}), 404
-
-    pdf_path = pdf_files[0]
 
     # 逐页渲染为像素图
     doc = fitz.open(pdf_path)

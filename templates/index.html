@@ -1169,12 +1169,14 @@
     });
     $('exportImages').addEventListener('click', () => {
         const dpi = $('dpiSelect').value, fmt = $('formatSelect').value;
-        window.location.href = `/api/export/images/${state.taskId}?dpi=${dpi}&format=${fmt}`;
+        const blobParam = state.resultUrl ? `&blob_url=${encodeURIComponent(state.resultUrl)}` : '';
+        window.location.href = `/api/export/images/${state.taskId}?dpi=${dpi}&format=${fmt}${blobParam}`;
     });
     $('exportLong').addEventListener('click', () => {
         const dpi = $('dpiSelect').value, fmt = $('formatSelect').value;
+        const blobParam = state.resultUrl ? `&blob_url=${encodeURIComponent(state.resultUrl)}` : '';
         toast(T('genLong'));
-        window.location.href = `/api/export/longimage/${state.taskId}?dpi=${dpi}&format=${fmt}`;
+        window.location.href = `/api/export/longimage/${state.taskId}?dpi=${dpi}&format=${fmt}${blobParam}`;
     });
     $('exportImageFile').addEventListener('click', () => {
         if (state.resultUrl) window.open(state.resultUrl, '_blank');
