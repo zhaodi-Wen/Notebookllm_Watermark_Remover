@@ -697,28 +697,16 @@ def export_pdf_to_images(pdf_path, output_dir, dpi=200, fmt='png'):
 def _blob_upload(file_path, blob_name):
     """上传文件到 Vercel Blob，返回 blob url"""
     import vercel_blob
-    token = os.environ.get('BLOB_READ_WRITE_TOKEN', '')
     with open(file_path, 'rb') as f:
-        resp = vercel_blob.put(blob_name, f.read(),
-                               options={'access': 'public', 'token': token})
+        resp = vercel_blob.put(blob_name, f.read(), multipart=True)
     return resp.get('url', '')
-
-
-def _blob_download(blob_url, local_path):
-    """从 Blob URL 下载文件到本地"""
-    import requests
-    resp = requests.get(blob_url, timeout=60)
-    resp.raise_for_status()
-    with open(local_path, 'wb') as f:
-        f.write(resp.content)
 
 
 def _blob_delete(blob_url):
     """删除 Blob 中的文件"""
     try:
         import vercel_blob
-        token = os.environ.get('BLOB_READ_WRITE_TOKEN', '')
-        vercel_blob.delete([blob_url], options={'token': token})
+        vercel_blob.delete([blob_url])
     except Exception:
         pass
 
@@ -735,39 +723,44 @@ ALLOWED_IMAGE = {'.png', '.jpg', '.jpeg', '.webp', '.bmp'}
 ALLOWED_ALL = ALLOWED_PDF | ALLOWED_IMAGE
 
 
-# ---------- 获取客户端直传 Token（仅 Vercel 模式）----------
-@app.route('/api/upload-url', methods=['POST'])
-def get_upload_url():
-    """Vercel 模式：为前端生成直传 Blob 的客户端 token"""
-    if not _IS_VERCEL:
-        return jsonify({'error': '仅 Vercel 模式使用此接口'}), 400
+# ---------- 分块上传接口 ----------
+@app.route('/api/upload/chunk', methods=['POST'])
+def upload_chunk():
+    """接收文件分块，写入 /tmp 拼合。每块 < 4MB，绕过 Vercel 4.5MB 限制"""
+    task_id  = request.form.get('task_id')
+    filename = secure_filename(request.form.get('filename', ''))
+    chunk_index = int(request.form.get('chunk_index', 0))
+    total_chunks = int(request.form.get('total_chunks', 1))
+    file_type = request.form.get('file_type', 'pdf')
 
-    data = request.json or {}
-    filename = secure_filename(data.get('filename', 'upload.pdf'))
-    ext = os.path.splitext(filename.lower())[1]
-    if ext not in ALLOWED_ALL:
-        return jsonify({'error': '不支持的文件类型'}), 400
+    if not task_id or not filename or 'chunk' not in request.files:
+        return jsonify({'error': '参数缺失'}), 400
 
-    try:
-        import vercel_blob
-        token = os.environ.get('BLOB_READ_WRITE_TOKEN', '')
-        base_name = os.path.splitext(filename)[0]
-        blob_name = f'uploads/{base_name}_{str(uuid.uuid4())[:6]}{ext}'
-        # 生成客户端上传 token
-        client_token = vercel_blob.generate_client_token(
-            blob_name,
-            options={'access': 'public', 'token': token,
-                     'maximumSizeInBytes': 100 * 1024 * 1024}
-        )
-        file_type = 'pdf' if ext == '.pdf' else 'image'
+    tmp_dir = os.path.join('/tmp' if _IS_VERCEL else app.config['UPLOAD_FOLDER'], task_id)
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    chunk_path = os.path.join(tmp_dir, f'{filename}.part{chunk_index}')
+    request.files['chunk'].save(chunk_path)
+
+    # 所有分块到齐后合并
+    if chunk_index + 1 == total_chunks:
+        final_path = os.path.join(tmp_dir, filename)
+        with open(final_path, 'wb') as outf:
+            for i in range(total_chunks):
+                part = os.path.join(tmp_dir, f'{filename}.part{i}')
+                with open(part, 'rb') as pf:
+                    outf.write(pf.read())
+                os.remove(part)
+
         return jsonify({
-            'client_token': client_token,
-            'blob_name': blob_name,
-            'file_type': file_type,
+            'task_id': task_id,
             'filename': filename,
+            'file_type': file_type,
+            'assembled': True,
+            'message': '上传完成'
         })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+
+    return jsonify({'task_id': task_id, 'chunk_index': chunk_index, 'assembled': False})
 
 
 # ---------- 本地模式：直接上传到服务器 ----------
@@ -808,22 +801,23 @@ def process_pdf():
     data = request.json or {}
     sensitivity = data.get('sensitivity', 'medium')
 
-    # ---- Vercel Blob 模式 ----
-    blob_url = data.get('blob_url')
-    if blob_url:
+    # ---- Vercel 分块上传模式 ----
+    blob_url = data.get('blob_url')         # 兼容旧字段（保留）
+    chunk_assembled = data.get('assembled') # 分块拼合完成标志
+    if chunk_assembled or blob_url:
         filename = data.get('filename', 'file.pdf')
         ext = os.path.splitext(filename.lower())[1]
         file_type = 'pdf' if ext == '.pdf' else 'image'
         task_id = data.get('task_id', str(uuid.uuid4())[:8])
 
-        tmp_dir = f'/tmp/{task_id}'
-        os.makedirs(tmp_dir, exist_ok=True)
+        tmp_dir = f'/tmp/{task_id}' if _IS_VERCEL else os.path.join(app.config['UPLOAD_FOLDER'], task_id)
         input_path  = os.path.join(tmp_dir, filename)
         output_name = f'clean_{filename}'
         output_path = os.path.join(tmp_dir, output_name)
 
         try:
-            _blob_download(blob_url, input_path)
+            if not os.path.exists(input_path):
+                return jsonify({'error': '文件未找到，请重新上传'}), 404
 
             if file_type == 'pdf':
                 remover = WatermarkRemover(sensitivity=sensitivity)
@@ -834,11 +828,10 @@ def process_pdf():
                          'image_removed': 1 if result['cleaned'] else 0}
 
             # 上传结果到 Blob
-            result_blob_name = f'outputs/{task_id}/{output_name}'
-            result_url = _blob_upload(output_path, result_blob_name)
-
-            # 清理原始 Blob（可选）
-            _blob_delete(blob_url)
+            result_url = ''
+            if _IS_VERCEL:
+                blob_name = f'outputs/{task_id}/{output_name}'
+                result_url = _blob_upload(output_path, blob_name)
 
             return jsonify({
                 'task_id': task_id,

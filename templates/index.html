@@ -1016,32 +1016,35 @@
         } catch { toast(T('networkErr'), 'error'); }
     }
 
-    // ---- Vercel Blob 直传 ----
+    // ---- Vercel 分块上传（每块 3.5MB，绕过 4.5MB 限制）----
     async function handleFileBlob(file) {
+        const CHUNK_SIZE = 3.5 * 1024 * 1024; // 3.5MB
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+        const taskId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const ext = file.name.split('.').pop().toLowerCase();
+        const fileType = ext === 'pdf' ? 'pdf' : 'image';
+
         try {
-            // 1) 获取客户端上传 token
-            const tokenRes = await fetch('/api/upload-url', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: file.name }),
-            });
-            const tokenData = await tokenRes.json();
-            if (!tokenRes.ok) { toast(tokenData.error || T('uploadFail'), 'error'); return; }
+            for (let i = 0; i < totalChunks; i++) {
+                const start = i * CHUNK_SIZE;
+                const chunk = file.slice(start, start + CHUNK_SIZE);
+                const form = new FormData();
+                form.append('chunk', chunk);
+                form.append('task_id', taskId);
+                form.append('filename', file.name);
+                form.append('chunk_index', i);
+                form.append('total_chunks', totalChunks);
+                form.append('file_type', fileType);
 
-            const { client_token, file_type, filename } = tokenData;
+                const res = await fetch('/api/upload/chunk', { method: 'POST', body: form });
+                const d = await res.json();
+                if (!res.ok) { toast(d.error || T('uploadFail'), 'error'); return; }
+            }
 
-            // 2) 前端直传到 Blob（不经过 Serverless 函数，无大小限制）
-            const { upload } = await import('https://unpkg.com/@vercel/blob@0.27.0/dist/index.browser.js');
-            const blob = await upload(filename, file, {
-                access: 'public',
-                handleUploadUrl: '/api/upload-url',
-                clientPayload: JSON.stringify({ filename: file.name }),
-            });
-
-            state.blobUrl  = blob.url;
-            state.filename = filename;
-            state.fileType = file_type;
-            state.taskId   = `blob_${Date.now()}`;
+            state.taskId   = taskId;
+            state.filename = file.name;
+            state.fileType = fileType;
+            state.blobUrl  = 'chunked'; // 标记已完成分块上传
             _onUploadSuccess(file);
             toast(T('uploadOk'));
         } catch (err) { toast(T('networkErr') + ': ' + err.message, 'error'); }
@@ -1085,9 +1088,10 @@
         settingsPanel.classList.remove('show');
         progressBar.classList.add('show', 'processing');
         try {
-            // Blob 模式：传 blob_url；本地模式：传 task_id + filename
+            // Blob/分块模式：传 assembled=true；本地模式：传 task_id + filename
             const body = state.blobUrl
-                ? { blob_url: state.blobUrl, filename: state.filename, task_id: state.taskId, sensitivity: state.sensitivity }
+                ? { assembled: true, blob_url: state.blobUrl !== 'chunked' ? state.blobUrl : undefined,
+                    task_id: state.taskId, filename: state.filename, sensitivity: state.sensitivity }
                 : { task_id: state.taskId, filename: state.filename, sensitivity: state.sensitivity };
 
             const res = await fetch('/api/process', {
