@@ -1147,8 +1147,9 @@
 
     function loadPreview() {
         if (state.resultUrl && state.fileType === 'pdf') {
-            // Vercel Blob 模式：PDF 用后端渲染接口按页预览
-            $('previewImg').src = `/api/blob_preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
+            // Vercel Blob 模式：PDF 用后端渲染接口按页预览，传入 blob_url 以防 /tmp 失效
+            const blobParam = `&blob_url=${encodeURIComponent(state.resultUrl)}`;
+            $('previewImg').src = `/api/blob_preview/${state.taskId}/${state.currentPage}?t=${Date.now()}${blobParam}`;
         } else if (state.resultUrl) {
             // Blob 模式：图片直接展示
             $('previewImg').src = state.previewUrl || state.resultUrl;

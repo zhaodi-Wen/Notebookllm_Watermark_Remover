@@ -915,15 +915,12 @@ def process_pdf():
 
 @app.route('/api/blob_preview/<task_id>/<int:page_num>')
 def blob_preview(task_id, page_num):
-    """Vercel 模式：从 /tmp 中的已处理 PDF 渲染指定页，返回 PNG"""
-    import glob
-    tmp_dir = f'/tmp/{task_id}'
-    # 找 clean_*.pdf
-    pdf_files = glob.glob(os.path.join(tmp_dir, 'clean_*.pdf'))
-    if not pdf_files:
+    """Vercel 模式：渲染 PDF 指定页返回 PNG，支持从 Blob URL 下载"""
+    blob_url = request.args.get('blob_url')
+    pdf_path = _ensure_pdf(task_id, blob_url)
+    if not pdf_path:
         return jsonify({'error': '文件不存在，请重新处理'}), 404
 
-    pdf_path = pdf_files[0]
     try:
         doc = fitz.open(pdf_path)
         total = len(doc)
