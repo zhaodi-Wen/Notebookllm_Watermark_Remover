@@ -1107,7 +1107,8 @@
             if (res.ok) {
                 if (data.result_url) state.resultUrl = data.result_url;
                 if (data.page_urls && data.page_urls.length) state.pageUrls = data.page_urls;
-                if (data.preview_url) state.previewUrl = data.preview_url;                setTimeout(() => { progressBar.classList.remove('show'); showResults(data); }, 500);
+                if (data.preview_url) state.previewUrl = data.preview_url;
+                setTimeout(() => { progressBar.classList.remove('show'); showResults(data); }, 500);
             } else {
                 progressBar.classList.remove('show');
                 settingsPanel.classList.add('show');
