@@ -337,19 +337,31 @@
         .progress-bar.show { display: block; }
 
         .progress-track {
-            height: 5px; background: var(--surface3);
+            height: 6px; background: var(--surface3);
             border-radius: 3px; overflow: hidden; margin: 14px 0;
         }
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, var(--primary), var(--accent));
             border-radius: 3px; width: 0%;
-            transition: width 0.5s;
+            transition: width 0.3s ease;
         }
         .progress-text { font-size: 14px; color: var(--text-dim); }
+        .progress-percent { font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
 
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         .processing .progress-fill { animation: pulse 1.5s infinite; width: 70% !important; }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .processing .progress-fill {
+            animation: pulse 1.5s infinite;
+            width: 70% !important;
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
+            background-size: 200% 100%;
+            animation: shimmer 2s linear infinite, pulse 1.5s ease-in-out infinite;
+        }
 
         /* ===== RESULTS ===== */
         .results-panel {
@@ -627,7 +639,8 @@
 
         <!-- 进度 -->
         <div class="progress-bar" id="progressBar">
-            <div class="progress-text" data-i18n="processing">正在处理中，请稍候...</div>
+            <div class="progress-percent" id="progressPercent"></div>
+            <div class="progress-text" id="progressText" data-i18n="processing">正在处理中，请稍候...</div>
             <div class="progress-track">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
@@ -715,7 +728,9 @@
             sensLow: '低', sensMedium: '中', sensHigh: '高',
             sensitivityHint: '低灵敏度：仅去除明显水印 | 中灵敏度：推荐 | 高灵敏度：激进去除，可能误删部分内容',
             processBtn:    '开始去除水印',
-            processing:    '正在处理中，请稍候...',
+            uploading:     '正在上传文件...',
+            uploadingPct:  (p) => `上传中 ${p}%`,
+            processing:    '正在去除水印，请稍候...',
             processingBtn: '处理中...',
             resultsTitle:  '处理结果',
             statPages: '总页数', statText: '文本水印', statImage: '图片水印',
@@ -751,7 +766,9 @@
             sensLow: 'Low', sensMedium: 'Medium', sensHigh: 'High',
             sensitivityHint: 'Low: obvious watermarks only | Medium: recommended | High: aggressive, may affect content',
             processBtn:    'Remove Watermark',
-            processing:    'Processing, please wait...',
+            uploading:     'Uploading file...',
+            uploadingPct:  (p) => `Uploading ${p}%`,
+            processing:    'Removing watermarks, please wait...',
             processingBtn: 'Processing...',
             resultsTitle:  'Results',
             statPages: 'Pages', statText: 'Text WM', statImage: 'Image WM',
@@ -781,7 +798,7 @@
             settingsTitle: '設定', sensitivityLabel: '検出感度',
             sensLow: '低', sensMedium: '中', sensHigh: '高',
             sensitivityHint: '低：明確な透かしのみ | 中：推奨 | 高：積極的除去',
-            processBtn: '透かしを除去', processing: '処理中...', processingBtn: '処理中...',
+            processBtn: '透かしを除去', uploading: 'アップロード中...', uploadingPct: (p) => `アップロード中 ${p}%`, processing: '処理中...', processingBtn: '処理中...',
             resultsTitle: '処理結果', statPages: 'ページ数', statText: 'テキスト', statImage: '画像',
             prevPage: '← 前へ', nextPage: '次へ →', dpiLabel: 'DPI：', fmtLabel: '形式：',
             dpi150: '150 DPI（高速）', dpi200: '200 DPI（推奨）', dpi300: '300 DPI（高画質）',
@@ -805,7 +822,7 @@
             settingsTitle: '설정', sensitivityLabel: '감지 민감도',
             sensLow: '낮음', sensMedium: '중간', sensHigh: '높음',
             sensitivityHint: '낮음: 명확한 워터마크만 | 중간: 권장 | 높음: 적극적 제거',
-            processBtn: '워터마크 제거 시작', processing: '처리 중...', processingBtn: '처리 중...',
+            processBtn: '워터마크 제거 시작', uploading: '업로드 중...', uploadingPct: (p) => `업로드 중 ${p}%`, processing: '처리 중...', processingBtn: '처리 중...',
             resultsTitle: '처리 결과', statPages: '페이지', statText: '텍스트', statImage: '이미지',
             prevPage: '← 이전', nextPage: '다음 →', dpiLabel: 'DPI:', fmtLabel: '형식:',
             dpi150: '150 DPI (빠름)', dpi200: '200 DPI (권장)', dpi300: '300 DPI (고화질)',
@@ -829,7 +846,7 @@
             settingsTitle: 'Configuración', sensitivityLabel: 'Sensibilidad',
             sensLow: 'Baja', sensMedium: 'Media', sensHigh: 'Alta',
             sensitivityHint: 'Baja: solo obvias | Media: recomendado | Alta: agresivo',
-            processBtn: 'Eliminar marca de agua', processing: 'Procesando...', processingBtn: 'Procesando...',
+            processBtn: 'Eliminar marca de agua', uploading: 'Subiendo...', uploadingPct: (p) => `Subiendo ${p}%`, processing: 'Procesando...', processingBtn: 'Procesando...',
             resultsTitle: 'Resultados', statPages: 'Páginas', statText: 'Texto', statImage: 'Imagen',
             prevPage: '← Anterior', nextPage: 'Siguiente →', dpiLabel: 'DPI:', fmtLabel: 'Formato:',
             dpi150: '150 DPI (Rápido)', dpi200: '200 DPI (Recomendado)', dpi300: '300 DPI (Alta calidad)',
@@ -853,7 +870,7 @@
             settingsTitle: 'Paramètres', sensitivityLabel: 'Sensibilité',
             sensLow: 'Faible', sensMedium: 'Moyenne', sensHigh: 'Élevée',
             sensitivityHint: 'Faible: uniquement évidents | Moyenne: recommandé | Élevée: agressif',
-            processBtn: 'Supprimer le filigrane', processing: 'Traitement...', processingBtn: 'En cours...',
+            processBtn: 'Supprimer le filigrane', uploading: 'Téléchargement...', uploadingPct: (p) => `Téléchargement ${p}%`, processing: 'Traitement...', processingBtn: 'En cours...',
             resultsTitle: 'Résultats', statPages: 'Pages', statText: 'Texte', statImage: 'Image',
             prevPage: '← Précédent', nextPage: 'Suivant →', dpiLabel: 'DPI:', fmtLabel: 'Format:',
             dpi150: '150 DPI (Rapide)', dpi200: '200 DPI (Recommandé)', dpi300: '300 DPI (Haute qualité)',
@@ -877,7 +894,7 @@
             settingsTitle: 'Einstellungen', sensitivityLabel: 'Empfindlichkeit',
             sensLow: 'Niedrig', sensMedium: 'Mittel', sensHigh: 'Hoch',
             sensitivityHint: 'Niedrig: nur offensichtliche | Mittel: empfohlen | Hoch: aggressiv',
-            processBtn: 'Wasserzeichen entfernen', processing: 'Wird verarbeitet...', processingBtn: 'Verarbeitung...',
+            processBtn: 'Wasserzeichen entfernen', uploading: 'Hochladen...', uploadingPct: (p) => `Hochladen ${p}%`, processing: 'Wird verarbeitet...', processingBtn: 'Verarbeitung...',
             resultsTitle: 'Ergebnisse', statPages: 'Seiten', statText: 'Text', statImage: 'Bild',
             prevPage: '← Zurück', nextPage: 'Weiter →', dpiLabel: 'DPI:', fmtLabel: 'Format:',
             dpi150: '150 DPI (Schnell)', dpi200: '200 DPI (Empfohlen)', dpi300: '300 DPI (Hohe Qualität)',
@@ -901,7 +918,7 @@
             settingsTitle: 'Configurações', sensitivityLabel: 'Sensibilidade',
             sensLow: 'Baixa', sensMedium: 'Média', sensHigh: 'Alta',
             sensitivityHint: 'Baixa: apenas óbvias | Média: recomendado | Alta: agressivo',
-            processBtn: 'Remover marca d\'água', processing: 'Processando...', processingBtn: 'Processando...',
+            processBtn: 'Remover marca d\'água', uploading: 'Enviando...', uploadingPct: (p) => `Enviando ${p}%`, processing: 'Processando...', processingBtn: 'Processando...',
             resultsTitle: 'Resultados', statPages: 'Páginas', statText: 'Texto', statImage: 'Imagem',
             prevPage: '← Anterior', nextPage: 'Próximo →', dpiLabel: 'DPI:', fmtLabel: 'Formato:',
             dpi150: '150 DPI (Rápido)', dpi200: '200 DPI (Recomendado)', dpi300: '300 DPI (Alta qualidade)',
@@ -1000,23 +1017,59 @@
         }
     }
 
+    // ---- 进度条控制 ----
+    function showProgress(text, percent) {
+        progressBar.classList.add('show');
+        progressBar.classList.remove('processing');
+        $('progressText').textContent = text;
+        $('progressPercent').textContent = percent !== null ? `${percent}%` : '';
+        if (percent !== null) $('progressFill').style.width = `${percent}%`;
+    }
+    function showProcessing() {
+        progressBar.classList.add('show', 'processing');
+        $('progressText').textContent = T('processing');
+        $('progressPercent').textContent = '';
+    }
+    function hideProgress() {
+        progressBar.classList.remove('show', 'processing');
+        $('progressFill').style.width = '0%';
+        $('progressPercent').textContent = '';
+    }
+
     // ---- 本地上传 ----
     async function handleFileLocal(file) {
         const formData = new FormData();
         formData.append('file', file);
+        showProgress(T('uploading'), 0);
         try {
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            const data = await res.json();
-            if (res.ok) {
-                state.taskId = data.task_id;
-                state.filename = data.filename;
-                state.fileType = data.file_type || 'pdf';
+            const xhr = new XMLHttpRequest();
+            const result = await new Promise((resolve, reject) => {
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const pct = Math.round(e.loaded / e.total * 100);
+                        showProgress(T('uploadingPct', pct), pct);
+                    }
+                };
+                xhr.onload = () => {
+                    try { resolve({ status: xhr.status, data: JSON.parse(xhr.responseText) }); }
+                    catch { reject(new Error('Invalid response')); }
+                };
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.open('POST', '/api/upload');
+                xhr.send(formData);
+            });
+            if (result.status === 200) {
+                state.taskId = result.data.task_id;
+                state.filename = result.data.filename;
+                state.fileType = result.data.file_type || 'pdf';
+                hideProgress();
                 _onUploadSuccess(file);
                 toast(T('uploadOk'));
             } else {
-                toast(data.error || T('uploadFail'), 'error');
+                hideProgress();
+                toast(result.data.error || T('uploadFail'), 'error');
             }
-        } catch { toast(T('networkErr'), 'error'); }
+        } catch { hideProgress(); toast(T('networkErr'), 'error'); }
     }
 
     // ---- Vercel 分块上传（每块 3.5MB，绕过 4.5MB 限制）----
@@ -1027,6 +1080,7 @@
         const ext = file.name.split('.').pop().toLowerCase();
         const fileType = ext === 'pdf' ? 'pdf' : 'image';
 
+        showProgress(T('uploading'), 0);
         try {
             for (let i = 0; i < totalChunks; i++) {
                 const start = i * CHUNK_SIZE;
@@ -1041,16 +1095,20 @@
 
                 const res = await fetch('/api/upload/chunk', { method: 'POST', body: form });
                 const d = await res.json();
-                if (!res.ok) { toast(d.error || T('uploadFail'), 'error'); return; }
+                if (!res.ok) { hideProgress(); toast(d.error || T('uploadFail'), 'error'); return; }
+
+                const pct = Math.round((i + 1) / totalChunks * 100);
+                showProgress(T('uploadingPct', pct), pct);
             }
 
             state.taskId   = taskId;
             state.filename = file.name;
             state.fileType = fileType;
             state.blobUrl  = 'chunked'; // 标记已完成分块上传
+            hideProgress();
             _onUploadSuccess(file);
             toast(T('uploadOk'));
-        } catch (err) { toast(T('networkErr') + ': ' + err.message, 'error'); }
+        } catch (err) { hideProgress(); toast(T('networkErr') + ': ' + err.message, 'error'); }
     }
 
     function _onUploadSuccess(file) {
@@ -1089,7 +1147,7 @@
         btn.disabled = true;
         btn.innerHTML = `<span class="spinner"></span><span>${T('processingBtn')}</span>`;
         settingsPanel.classList.remove('show');
-        progressBar.classList.add('show', 'processing');
+        showProcessing();
         try {
             // Blob/分块模式：传 assembled=true；本地模式：传 task_id + filename
             const body = state.blobUrl
@@ -1105,18 +1163,20 @@
             const data = await res.json();
             progressBar.classList.remove('processing');
             $('progressFill').style.width = '100%';
+            $('progressPercent').textContent = '100%';
+            $('progressText').textContent = T('processOk', 0, 0).split('，')[0] || '✓';
             if (res.ok) {
                 if (data.result_url) state.resultUrl = data.result_url;
                 if (data.page_urls && data.page_urls.length) state.pageUrls = data.page_urls;
                 if (data.preview_url) state.previewUrl = data.preview_url;
-                setTimeout(() => { progressBar.classList.remove('show'); showResults(data); }, 500);
+                setTimeout(() => { hideProgress(); showResults(data); }, 500);
             } else {
-                progressBar.classList.remove('show');
+                hideProgress();
                 settingsPanel.classList.add('show');
                 toast(data.error || T('processFail'), 'error');
             }
         } catch (err) {
-            progressBar.classList.remove('show', 'processing');
+            hideProgress();
             settingsPanel.classList.add('show');
             toast(T('processErr', err.message), 'error');
         }
