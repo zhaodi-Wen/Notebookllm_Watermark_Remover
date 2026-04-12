@@ -1107,8 +1107,7 @@
             if (res.ok) {
                 if (data.result_url) state.resultUrl = data.result_url;
                 if (data.page_urls && data.page_urls.length) state.pageUrls = data.page_urls;
-                if (data.preview_url) state.previewUrl = data.preview_url;
-                setTimeout(() => { progressBar.classList.remove('show'); showResults(data); }, 500);
+                if (data.preview_url) state.previewUrl = data.preview_url;                setTimeout(() => { progressBar.classList.remove('show'); showResults(data); }, 500);
             } else {
                 progressBar.classList.remove('show');
                 settingsPanel.classList.add('show');
@@ -1148,18 +1147,23 @@
     }
 
     function loadPreview() {
+        let src = null;
         if (state.pageUrls && state.pageUrls.length >= state.currentPage) {
-            // Vercel Blob 模式：直接用预上传的页面图片 URL
-            $('previewImg').src = state.pageUrls[state.currentPage - 1];
+            // 有全页 URL 数组（最优）
+            src = state.pageUrls[state.currentPage - 1];
+        } else if (state.currentPage === 1 && state.previewUrl) {
+            // 只有第1页预览图
+            src = state.previewUrl;
         } else if (state.resultUrl && state.fileType === 'pdf') {
-            // Blob 模式降级：通过后端渲染（传 blob_url 防止 /tmp 失效）
+            // 降级：后端按需渲染（传 blob_url 防 /tmp 失效）
             const blobParam = `&blob_url=${encodeURIComponent(state.resultUrl)}`;
-            $('previewImg').src = `/api/blob_preview/${state.taskId}/${state.currentPage}?t=${Date.now()}${blobParam}`;
+            src = `/api/blob_preview/${state.taskId}/${state.currentPage}?t=${Date.now()}${blobParam}`;
         } else if (state.resultUrl) {
-            $('previewImg').src = state.previewUrl || state.resultUrl;
+            src = state.resultUrl;
         } else {
-            $('previewImg').src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
+            src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
         }
+        $('previewImg').src = src;
         updatePageInfo();
         $('prevPage').disabled = state.currentPage <= 1;
         $('nextPage').disabled = state.currentPage >= state.totalPages;
