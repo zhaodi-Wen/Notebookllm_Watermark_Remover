@@ -1157,9 +1157,17 @@ def export_long_image(task_id):
 @app.route('/api/cleanup', methods=['POST'])
 def cleanup():
     """清理 Blob 文件和本地临时文件"""
-    data = request.json or {}
+    import json as json_mod
+    # 兼容 sendBeacon（Content-Type: text/plain）和正常 JSON 请求
+    try:
+        data = request.json or {}
+    except Exception:
+        try:
+            data = json_mod.loads(request.get_data(as_text=True))
+        except Exception:
+            data = {}
     task_id = data.get('task_id')
-    blob_urls = data.get('blob_urls', [])  # 前端传入所有 blob url
+    blob_urls = data.get('blob_urls', [])
 
     deleted = 0
 

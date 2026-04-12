@@ -1257,6 +1257,20 @@
         }, 5000);
     }
 
+    // 页面关闭/离开时自动清理
+    window.addEventListener('beforeunload', () => {
+        if (!state.taskId) return;
+        const blobUrls = [];
+        if (state.resultUrl) blobUrls.push(state.resultUrl);
+        if (state.previewUrl) blobUrls.push(state.previewUrl);
+        if (state.pageUrls) state.pageUrls.forEach(u => { if (u) blobUrls.push(u); });
+        if (!blobUrls.length) return;
+        // sendBeacon 不会被页面关闭打断
+        navigator.sendBeacon('/api/cleanup', JSON.stringify({
+            task_id: state.taskId, blob_urls: blobUrls
+        }));
+    });
+
     $('exportPdf').addEventListener('click', () => {
         if (state.resultUrl) window.open(state.resultUrl, '_blank');
         else window.location.href = `/api/export/pdf/${state.taskId}`;
