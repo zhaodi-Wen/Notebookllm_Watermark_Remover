@@ -460,6 +460,15 @@
             border: 1px solid #a78bfa;
         }
         .export-long:hover { background: rgba(167,139,250,0.1); }
+        .cleanup-btn {
+            background: transparent; color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: 8px; padding: 8px 20px;
+            font-size: 12px; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cleanup-btn:hover { color: #ef4444; border-color: #ef4444; background: rgba(239,68,68,0.08); }
+        .cleanup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         /* ===== MISC ===== */
         #fileInput { display: none; }
@@ -700,6 +709,11 @@
             <div class="export-row" id="exportRowImage" style="display:none;">
                 <button class="export-btn export-pdf" id="exportImageFile" data-i18n="exportImageFile">📥 下载去水印图片</button>
             </div>
+
+            <!-- 清理按钮 -->
+            <div style="margin-top: 14px; text-align: center;">
+                <button id="cleanupBtn" class="cleanup-btn" data-i18n="cleanup">🗑️ 清理云端文件</button>
+            </div>
         </div>
 
     </div>
@@ -739,6 +753,7 @@
             dpi150: '150 DPI（快速）', dpi200: '200 DPI（推荐）', dpi300: '300 DPI（高清）',
             exportPdf: '📥 导出 PDF', exportImages: '🖼️ 导出图片（每页一张）', exportLong: '📜 导出长图',
             exportImageFile: '📥 下载去水印图片',
+            cleanup: '🗑️ 清理云端文件', cleanupOk: '已清理完成', cleanupFail: '清理失败',
             pageInfo:      (c, t) => `第 ${c} 页 / 共 ${t} 页`,
             uploadOk: '文件上传成功', uploadFail: '上传失败',
             uploadPdfOnly: '仅支持 PDF 和图片文件（PNG/JPG/WEBP）', networkErr: '网络错误',
@@ -777,6 +792,7 @@
             dpi150: '150 DPI (Fast)', dpi200: '200 DPI (Recommended)', dpi300: '300 DPI (High Quality)',
             exportPdf: '📥 Export PDF', exportImages: '🖼️ Export Images (per page)', exportLong: '📜 Export Long Image',
             exportImageFile: '📥 Download Cleaned Image',
+            cleanup: '🗑️ Clean Up Cloud Files', cleanupOk: 'Cleaned up', cleanupFail: 'Cleanup failed',
             pageInfo:      (c, t) => `Page ${c} / ${t}`,
             uploadOk: 'File uploaded', uploadFail: 'Upload failed',
             uploadPdfOnly: 'Only PDF and image files (PNG/JPG/WEBP) supported', networkErr: 'Network error',
@@ -1254,6 +1270,38 @@
     $('exportImageFile').addEventListener('click', () => {
         if (state.resultUrl) window.open(state.resultUrl, '_blank');
         else window.location.href = `/api/export/image/${state.taskId}`;
+    });
+
+    $('cleanupBtn').addEventListener('click', async () => {
+        const btn = $('cleanupBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳';
+
+        // 收集所有 blob url
+        const blobUrls = [];
+        if (state.resultUrl) blobUrls.push(state.resultUrl);
+        if (state.previewUrl) blobUrls.push(state.previewUrl);
+        if (state.pageUrls) state.pageUrls.forEach(u => { if (u) blobUrls.push(u); });
+
+        try {
+            const res = await fetch('/api/cleanup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_id: state.taskId, blob_urls: blobUrls }),
+            });
+            if (res.ok) {
+                toast(T('cleanupOk'));
+                btn.textContent = '✓ ' + T('cleanupOk');
+            } else {
+                toast(T('cleanupFail'), 'error');
+                btn.textContent = T('cleanup');
+                btn.disabled = false;
+            }
+        } catch {
+            toast(T('cleanupFail'), 'error');
+            btn.textContent = T('cleanup');
+            btn.disabled = false;
+        }
     });
     </script>
 </body>

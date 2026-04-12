@@ -1154,5 +1154,37 @@ def export_long_image(task_id):
     )
 
 
+@app.route('/api/cleanup', methods=['POST'])
+def cleanup():
+    """清理 Blob 文件和本地临时文件"""
+    data = request.json or {}
+    task_id = data.get('task_id')
+    blob_urls = data.get('blob_urls', [])  # 前端传入所有 blob url
+
+    deleted = 0
+
+    # 删除 Blob 文件
+    if blob_urls and _IS_VERCEL:
+        try:
+            import vercel_blob
+            vercel_blob.delete(blob_urls)
+            deleted += len(blob_urls)
+        except Exception as e:
+            app.logger.warning(f'Blob cleanup error: {e}')
+
+    # 清理本地 /tmp 文件
+    if task_id:
+        import shutil
+        tmp_dir = f'/tmp/{task_id}' if _IS_VERCEL else os.path.join(app.config['UPLOAD_FOLDER'], task_id)
+        if os.path.isdir(tmp_dir):
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        # 本地模式也清理 output
+        out_dir = os.path.join(app.config['OUTPUT_FOLDER'], task_id)
+        if os.path.isdir(out_dir):
+            shutil.rmtree(out_dir, ignore_errors=True)
+
+    return jsonify({'deleted': deleted, 'message': '清理完成'})
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
