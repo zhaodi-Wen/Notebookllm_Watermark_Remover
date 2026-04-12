@@ -460,15 +460,6 @@
             border: 1px solid #a78bfa;
         }
         .export-long:hover { background: rgba(167,139,250,0.1); }
-        .cleanup-btn {
-            background: transparent; color: var(--text-dim);
-            border: 1px solid var(--border);
-            border-radius: 8px; padding: 8px 20px;
-            font-size: 12px; cursor: pointer;
-            transition: all 0.2s;
-        }
-        .cleanup-btn:hover { color: #ef4444; border-color: #ef4444; background: rgba(239,68,68,0.08); }
-        .cleanup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         /* ===== MISC ===== */
         #fileInput { display: none; }
@@ -708,11 +699,6 @@
             <!-- 图片模式导出按钮 -->
             <div class="export-row" id="exportRowImage" style="display:none;">
                 <button class="export-btn export-pdf" id="exportImageFile" data-i18n="exportImageFile">📥 下载去水印图片</button>
-            </div>
-
-            <!-- 清理按钮 -->
-            <div style="margin-top: 14px; text-align: center;">
-                <button id="cleanupBtn" class="cleanup-btn" data-i18n="cleanup">🗑️ 清理云端文件</button>
             </div>
         </div>
 
@@ -1252,56 +1238,47 @@
     $('prevPage').addEventListener('click', () => { if (state.currentPage > 1) { state.currentPage--; loadPreview(); } });
     $('nextPage').addEventListener('click', () => { if (state.currentPage < state.totalPages) { state.currentPage++; loadPreview(); } });
 
+    // ---- 自动清理 Blob 文件 ----
+    function autoCleanup() {
+        if (!state.taskId) return;
+        const blobUrls = [];
+        if (state.resultUrl) blobUrls.push(state.resultUrl);
+        if (state.previewUrl) blobUrls.push(state.previewUrl);
+        if (state.pageUrls) state.pageUrls.forEach(u => { if (u) blobUrls.push(u); });
+        if (!blobUrls.length) return;
+
+        // 延迟 5 秒清理，确保下载已开始
+        setTimeout(() => {
+            fetch('/api/cleanup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_id: state.taskId, blob_urls: blobUrls }),
+            }).catch(() => {});
+        }, 5000);
+    }
+
     $('exportPdf').addEventListener('click', () => {
         if (state.resultUrl) window.open(state.resultUrl, '_blank');
         else window.location.href = `/api/export/pdf/${state.taskId}`;
+        autoCleanup();
     });
     $('exportImages').addEventListener('click', () => {
         const dpi = $('dpiSelect').value, fmt = $('formatSelect').value;
         const blobParam = state.resultUrl ? `&blob_url=${encodeURIComponent(state.resultUrl)}` : '';
         window.location.href = `/api/export/images/${state.taskId}?dpi=${dpi}&format=${fmt}${blobParam}`;
+        autoCleanup();
     });
     $('exportLong').addEventListener('click', () => {
         const dpi = $('dpiSelect').value, fmt = $('formatSelect').value;
         const blobParam = state.resultUrl ? `&blob_url=${encodeURIComponent(state.resultUrl)}` : '';
         toast(T('genLong'));
         window.location.href = `/api/export/longimage/${state.taskId}?dpi=${dpi}&format=${fmt}${blobParam}`;
+        autoCleanup();
     });
     $('exportImageFile').addEventListener('click', () => {
         if (state.resultUrl) window.open(state.resultUrl, '_blank');
         else window.location.href = `/api/export/image/${state.taskId}`;
-    });
-
-    $('cleanupBtn').addEventListener('click', async () => {
-        const btn = $('cleanupBtn');
-        btn.disabled = true;
-        btn.textContent = '⏳';
-
-        // 收集所有 blob url
-        const blobUrls = [];
-        if (state.resultUrl) blobUrls.push(state.resultUrl);
-        if (state.previewUrl) blobUrls.push(state.previewUrl);
-        if (state.pageUrls) state.pageUrls.forEach(u => { if (u) blobUrls.push(u); });
-
-        try {
-            const res = await fetch('/api/cleanup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ task_id: state.taskId, blob_urls: blobUrls }),
-            });
-            if (res.ok) {
-                toast(T('cleanupOk'));
-                btn.textContent = '✓ ' + T('cleanupOk');
-            } else {
-                toast(T('cleanupFail'), 'error');
-                btn.textContent = T('cleanup');
-                btn.disabled = false;
-            }
-        } catch {
-            toast(T('cleanupFail'), 'error');
-            btn.textContent = T('cleanup');
-            btn.disabled = false;
-        }
+        autoCleanup();
     });
     </script>
 </body>
