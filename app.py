@@ -837,28 +837,27 @@ def process_pdf():
 
             # 上传结果到 Blob
             result_url = ''
-            preview_url = ''
+            page_urls = []
             if _IS_VERCEL:
                 blob_name = f'outputs/{task_id}/{output_name}'
                 result_url = _blob_upload(output_path, blob_name)
 
-                # 额外渲染第1页为预览图上传 Blob
+                # 渲染所有页为预览图上传 Blob
                 if file_type == 'pdf':
                     try:
+                        import vercel_blob as vb
                         doc_prev = fitz.open(output_path)
-                        pix = doc_prev[0].get_pixmap(matrix=fitz.Matrix(1.5, 1.5))
-                        preview_bytes = pix.tobytes("png")
+                        for pi in range(len(doc_prev)):
+                            pix = doc_prev[pi].get_pixmap(matrix=fitz.Matrix(1.5, 1.5))
+                            png_bytes = pix.tobytes("png")
+                            resp = vb.put(f'outputs/{task_id}/preview_p{pi+1}.png', png_bytes)
+                            url = resp.get('url', '') if isinstance(resp, dict) else getattr(resp, 'url', '')
+                            page_urls.append(url)
                         doc_prev.close()
-                        import vercel_blob
-                        prev_resp = vercel_blob.put(
-                            f'outputs/{task_id}/preview_p1.png',
-                            preview_bytes, multipart=False
-                        )
-                        preview_url = prev_resp.get('url', '') if isinstance(prev_resp, dict) else getattr(prev_resp, 'url', '')
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        app.logger.warning(f'Preview upload failed: {e}')
                 else:
-                    preview_url = result_url
+                    page_urls = [result_url]
 
             return jsonify({
                 'task_id': task_id,
@@ -866,7 +865,7 @@ def process_pdf():
                 'file_type': file_type,
                 'stats': stats,
                 'result_url': result_url,
-                'preview_url': preview_url,
+                'page_urls': page_urls,
                 'message': '处理完成'
             })
         except Exception as e:

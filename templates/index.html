@@ -941,6 +941,7 @@
         taskId: null, filename: null, fileType: 'pdf',
         blobUrl: null,        // Vercel Blob 模式：上传后的 blob url
         resultUrl: null,      // Vercel Blob 模式：处理结果的 blob url
+        pageUrls: [],         // Vercel Blob 模式：每页预览图 url 数组
         currentPage: 1, totalPages: 0, sensitivity: 'medium'
     };
 
@@ -1063,7 +1064,7 @@
 
     $('fileRemove').addEventListener('click', () => {
         state.taskId = null; state.filename = null; state.fileType = 'pdf';
-        state.blobUrl = null; state.resultUrl = null;
+        state.blobUrl = null; state.resultUrl = null; state.pageUrls = [];
         fileInfo.classList.remove('show');
         settingsPanel.classList.remove('show');
         resultsPanel.classList.remove('show');
@@ -1105,6 +1106,7 @@
             $('progressFill').style.width = '100%';
             if (res.ok) {
                 if (data.result_url) state.resultUrl = data.result_url;
+                if (data.page_urls && data.page_urls.length) state.pageUrls = data.page_urls;
                 if (data.preview_url) state.previewUrl = data.preview_url;
                 setTimeout(() => { progressBar.classList.remove('show'); showResults(data); }, 500);
             } else {
@@ -1146,12 +1148,14 @@
     }
 
     function loadPreview() {
-        if (state.resultUrl && state.fileType === 'pdf') {
-            // Vercel Blob 模式：PDF 用后端渲染接口按页预览，传入 blob_url 以防 /tmp 失效
+        if (state.pageUrls && state.pageUrls.length >= state.currentPage) {
+            // Vercel Blob 模式：直接用预上传的页面图片 URL
+            $('previewImg').src = state.pageUrls[state.currentPage - 1];
+        } else if (state.resultUrl && state.fileType === 'pdf') {
+            // Blob 模式降级：通过后端渲染（传 blob_url 防止 /tmp 失效）
             const blobParam = `&blob_url=${encodeURIComponent(state.resultUrl)}`;
             $('previewImg').src = `/api/blob_preview/${state.taskId}/${state.currentPage}?t=${Date.now()}${blobParam}`;
         } else if (state.resultUrl) {
-            // Blob 模式：图片直接展示
             $('previewImg').src = state.previewUrl || state.resultUrl;
         } else {
             $('previewImg').src = `/api/preview/${state.taskId}/${state.currentPage}?t=${Date.now()}`;
